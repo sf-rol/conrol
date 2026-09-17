@@ -39,6 +39,15 @@ SIMPLIFY_MM = 0.015
 # Extra stock so the engraving boolean cuts cleanly through the surface.
 BOOL_OVERSHOOT_MM = 0.6
 
+# How the text reaches the award.
+#   "plaque"   - one plain pedestal for every award, text on a glued plaque.
+#                The plaque can be a contrasting colour, a botched engraving
+#                wastes 3.6 cm3 instead of 34, and only one pedestal has to be
+#                printed and verified.
+#   "engraved" - the text goes straight onto each pedestal. No assembly at all.
+# Do not mix the two on the same pedestal: it would print the text twice.
+ROUTE = "plaque"
+
 
 @dataclass(frozen=True)
 class TextLayout:
@@ -142,7 +151,7 @@ CATEGORIES: list[Category] = [
         slug="aportacio",
         title="ConRol 2026",
         subtitle="POR APORTAR UNA ACTIVIDAD",
-        body=("GRACIAS POR REMOVER", "EL CALDERO"),
+        body=("PORQUE SIN TI", "ESTO NO VUELVE A LATIR"),
     ),
     Category(
         slug="dramaqeen",
@@ -518,31 +527,33 @@ def validate(mesh: trimesh.Trimesh, label: str) -> None:
 def main() -> int:
     if not FONT_PATH.exists():
         raise SystemExit(f"font not found: {FONT_PATH}")
+    if ROUTE not in {"plaque", "engraved"}:
+        raise SystemExit(f"unknown ROUTE {ROUTE!r}; expected 'plaque' or 'engraved'")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     font = GlyphFont(FONT_PATH)
     pedestal_spec = Pedestal()
     plaque_spec = Plaque()
 
+    if ROUTE == "plaque":
+        # Every award shares one pedestal, so it is built and verified once.
+        print("pedestal (plain, shared by every award)")
+        plain = build_pedestal(font, Category(slug="lisa", title="", subtitle=""), pedestal_spec)
+        validate(plain, "peana-lisa.stl")
+        plain.export(OUT_DIR / "peana-lisa.stl")
+
     for category in CATEGORIES:
         print(f"category: {category.slug}")
-        pedestal = build_pedestal(font, category, pedestal_spec)
-        validate(pedestal, f"peana-{category.slug}.stl")
-        pedestal.export(OUT_DIR / f"peana-{category.slug}.stl")
+        if ROUTE == "engraved":
+            pedestal = build_pedestal(font, category, pedestal_spec)
+            validate(pedestal, f"peana-{category.slug}.stl")
+            pedestal.export(OUT_DIR / f"peana-{category.slug}.stl")
 
         plaque = build_plaque(font, category, plaque_spec)
         validate(plaque, f"placa-{category.slug}.stl")
         plaque.export(OUT_DIR / f"placa-{category.slug}.stl")
 
-    # One pedestal shared by every award, for the glue-a-plaque-on-it route.
-    # Engraving the pedestal *and* gluing a plaque over it would print the text
-    # twice, so the two routes need different pedestals.
-    print("category: (plain, matches every plaque)")
-    plain = build_pedestal(font, Category(slug="lisa", title="", subtitle=""), pedestal_spec)
-    validate(plain, "peana-lisa.stl")
-    plain.export(OUT_DIR / "peana-lisa.stl")
-
-    print(f"\n{len(CATEGORIES)} categories written to {OUT_DIR}")
+    print(f"\n{len(CATEGORIES)} categories written to {OUT_DIR} (route: {ROUTE})")
     return 0
 
 

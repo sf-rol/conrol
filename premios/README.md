@@ -4,17 +4,15 @@ Generates the printable parts of the ConRol 2026 awards from code.
 
 | Output | What it is |
 |---|---|
-| `out/peana-<slug>.stl` | Pedestal with the award text engraved on its front face and a slot on top for the figure. One per category. |
-| `out/placa-<slug>.stl` | The same text on a thin plate, to glue onto a plain pedestal. One per category. |
-| `out/peana-lisa.stl` | Plain pedestal. Use this with the plaques. One file, valid for every award. |
+| `out/peana-lisa.stl` | Plain pedestal, shared by every award. Print one per award. |
+| `out/placa-<slug>.stl` | Engraved plaque, one per category. Glue it onto the pedestal. |
 
-**Two routes, pick one per award — do not mix them on the same pedestal:**
-engraving the pedestal *and* gluing a plaque over it prints the text twice.
-
-- **Engraved route**: print `peana-<slug>.stl`. No assembly, no glue.
-- **Plaque route**: print `peana-lisa.stl` + `placa-<slug>.stl`. The plaque can be
-  a different colour, reads better than an engraving, and if a plaque comes out
-  badly you have wasted 3 g instead of 34 g.
+**Route: plaque.** One pedestal design, one plaque per award. The plaque can be a
+contrasting colour, a botched engraving wastes 3.6 cm³ instead of 34, and only
+one pedestal has to be printed and verified. Set `ROUTE = "engraved"` in the
+build script to engrave the text straight onto each pedestal instead — no
+assembly, but one file per award and every failure costs a full pedestal. Do not
+mix the two on the same pedestal: it would print the text twice.
 
 The **figure is not here yet**. See [Figure: what is still missing](#figure-what-is-still-missing).
 
@@ -29,7 +27,7 @@ them. Nothing is drawn by hand, so a new category is a one-line change.
 
 | Slug | Title | Subtitle | Body |
 |---|---|---|---|
-| `aportacio` | ConRol 2026 | POR APORTAR UNA ACTIVIDAD | GRACIAS POR REMOVER / EL CALDERO |
+| `aportacio` | ConRol 2026 | POR APORTAR UNA ACTIVIDAD | PORQUE SIN TI / ESTO NO VUELVE A LATIR |
 | `dramaqeen` | DRAMAQEEN | ConRol 2026 | POR BUSCAR EL DRAMA / INFINITO E INTENSO |
 | `abuelo-cebolleta` | ABUELO/A CEBOLLETA | ConRol 2026 | PORQUE EN MIS TIEMPOS / ESTO MOLABA MÁS |
 | `intensito` | INTENSITO | ConRol 2026 | POR TOMÁRSELO TODO / MUY EN SERIO |
@@ -37,9 +35,9 @@ them. Nothing is drawn by hand, so a new category is a one-line change.
 | `molusco-bivalvo` | MOLUSCO BIVALVO | ConRol 2026 | POR SENTIRLO TODO / POR DENTRO |
 | `troll-cavernas` | TROLL DE LAS CAVERNAS | ConRol 2026 | POR RONCAR COMO UN / MONSTRUO ÉPICO |
 
-The `aportacio` phrase is a **placeholder awaiting Yachar's choice**. Body lines
-are pre-wrapped on purpose: the plate does not word-wrap, so a line that is too
-long gets scaled down instead of broken.
+The `aportacio` award is given once per contributor, so its plaque is reprinted
+as needed. Body lines are pre-wrapped on purpose: the plate does not word-wrap,
+so a line that is too long gets scaled down instead of broken.
 
 ## Geometry
 
@@ -108,15 +106,20 @@ real print is the actual acceptance test. Print one before committing to seven.
 
 ## Print budget
 
-Verified volumes, per award:
+Measured mesh volumes, per award:
 
-| Part | Solid volume | Notes |
+| Part | Volume | Print time (est.) |
 |---|---|---|
-| Pedestal | 33.9 cm³ | already hollowed |
+| Pedestal | 34.1 cm³ | ~2–3 h |
 | Plaque | 3.6 cm³ | ~25 min |
 
-Estimated for a full set of seven (filament and time are **estimates**, not
-measurements): roughly **250–300 g of PLA and 18–25 h** for bases and plaques.
+So **~38 cm³ and ~3 h per award**, plus the figure. Because one pedestal design
+serves every award, adding an award later costs one more pedestal and one more
+plaque — nothing has to be redesigned.
+
+For a set of seven, excluding figures: roughly **260–300 g of PLA and 20–25 h**.
+Filament and time are **estimates**; only the volumes are measured.
+
 The figures are the real cost, not the bases — see below.
 
 ## Figure: what is still missing
