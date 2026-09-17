@@ -29,6 +29,7 @@ from shapely.affinity import translate
 from shapely.geometry import Polygon
 
 from fist_cubist import FistCubist, build_fist_cubist
+from fist_elegant import FistElegant, build_fist_elegant
 from fist_figure import FistFigure, build_fist
 from geometry_common import BOOL_OVERSHOOT_MM, box_at, extrude, rectangular_frustum
 
@@ -552,6 +553,7 @@ def main() -> int:
     figures = [
         ("figura-punyo", FistFigure(), build_fist),
         ("figura-punyo-cubista", FistCubist(), build_fist_cubist),
+        ("figura-punyo-elegante", FistElegant(), build_fist_elegant),
     ]
     for slug, figure_spec, builder in figures:
         figure = builder(figure_spec)

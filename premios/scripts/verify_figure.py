@@ -53,6 +53,7 @@ from shapely.geometry import LineString, Polygon
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_premios import Pedestal, pedestal_cavity  # noqa: E402
 from fist_cubist import FistCubist, build_fist_cubist  # noqa: E402
+from fist_elegant import FistElegant, build_fist_elegant  # noqa: E402
 from fist_figure import FistFigure, build_fist  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -70,22 +71,26 @@ MIN_NOTCH_PROMINENCE_MM = 1.2
 MIN_TENON_CLEARANCE_MM = 0.4
 MIN_SOCKET_FLOOR_MM = 3.0
 PROFILE_EDGE_MARGIN_MM = 6.0
+# The brief asks for a *perceptible* gentle flexion, so it has to be measured,
+# not asserted. 0.35 mm of bow across an 8 mm finger is visible at arm's length.
+MIN_PINKY_BOW_MM = 0.35
+PINKY_AXIS_SAMPLES = 25
+SLIVER_AREA_MM2 = 1.0
 
 
 @dataclass
 class Model:
     name: str
     slug: str
-    spec: FistFigure | FistCubist
+    spec: FistFigure | FistCubist | FistElegant
     mesh: trimesh.Trimesh
 
 
 def build_models() -> list[Model]:
-    plain, plain_spec = build_fist(), FistFigure()
-    cubist, cubist_spec = build_fist_cubist(), FistCubist()
     return [
-        Model("plain geometric", "figura-punyo", plain_spec, plain),
-        Model("cubist faceted", "figura-punyo-cubista", cubist_spec, cubist),
+        Model("plain geometric", "figura-punyo", FistFigure(), build_fist()),
+        Model("cubist faceted", "figura-punyo-cubista", FistCubist(), build_fist_cubist()),
+        Model("tapered articulated", "figura-punyo-elegante", FistElegant(), build_fist_elegant()),
     ]
 
 
@@ -160,7 +165,7 @@ def check_mesh(model: Model) -> bool:
 
 def check_fingers(model: Model) -> bool:
     spec = model.spec
-    z = spec.groove_bottom_z + 5.0
+    z = spec.profile_check_z
     xs, ys = front_profile(model.mesh, spec, z)
     print(f"\ncheck 2: {model.name} reads as four fingers (profile at z={z:.0f})")
     if np.isnan(ys).any():
@@ -211,6 +216,39 @@ def check_knuckles(model: Model) -> bool:
     return all(checks.values())
 
 
+def pinky_axis(mesh: trimesh.Trimesh, spec, samples: int = PINKY_AXIS_SAMPLES) -> np.ndarray:
+    """Centroid of the pinky section, sampled up its length."""
+    start = getattr(spec, "pinky_axis_start_z", spec.mass_top_z + 2.0)
+    zs = np.linspace(start, spec.top_z - 2.0, samples)
+    points = []
+    for z in zs:
+        # Sub-square-millimetre slivers are section artefacts at the joints, not
+        # part of the finger's body, so they do not move the axis.
+        regions = [r for r in parts(cross_section(mesh, z)) if r.area >= SLIVER_AREA_MM2]
+        if len(regions) != 1:
+            return np.empty((0, 2))
+        centroid = regions[0].centroid
+        points.append((centroid.x, centroid.y))
+    return np.array(points)
+
+
+def pinky_bow(axis: np.ndarray) -> float:
+    """How far the pinky's axis bows away from the straight chord.
+
+    A straight finger gives about zero. Flexion at each joint gives a shallow
+    S-curve, which is exactly what the brief asks for and what separates a
+    gesture from a poker.
+    """
+    if len(axis) < 3:
+        return 0.0
+    chord = axis[-1] - axis[0]
+    length = float(np.hypot(*chord))
+    if length == 0.0:
+        return 0.0
+    normal = np.array([-chord[1], chord[0]]) / length
+    return float(np.max(np.abs((axis - axis[0]) @ normal)))
+
+
 def check_pinky(model: Model) -> bool:
     spec = model.spec
     z = spec.mass_top_z + 6.0
@@ -236,6 +274,19 @@ def check_pinky(model: Model) -> bool:
     for label, passed in checks.items():
         print(f"  [{'PASS' if passed else 'FAIL'}] {label}")
     print(f"    pinky section {area:.1f} mm2 at x={centre_x:.1f}, rises {spec.pinky_height:.0f} mm")
+
+    axis = pinky_axis(model.mesh, spec)
+    bow = pinky_bow(axis)
+    declares_flexion = hasattr(spec, "pinky_flexion_deg")
+    if declares_flexion:
+        bowed = bow >= MIN_PINKY_BOW_MM
+        checks["flexion is perceptible"] = bowed
+        ok = all(checks.values())
+        print(
+            f"  [{'PASS' if bowed else 'FAIL'}] flexion between phalanges: axis bows "
+            f"{bow:.2f} mm (need >= {MIN_PINKY_BOW_MM} mm)"
+        )
+    print(f"    pinky axis bows {bow:.2f} mm off the straight chord")
     return all(checks.values())
 
 

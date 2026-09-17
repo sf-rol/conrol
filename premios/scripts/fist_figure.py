@@ -93,6 +93,11 @@ class FistFigure:
         return -self.mass_depth / 2
 
     @property
+    def profile_check_z(self) -> float:
+        """Height at which the finger profile is sampled: inside the grooves."""
+        return self.groove_bottom_z + 5.0
+
+    @property
     def min_groove_depth(self) -> float:
         """All grooves are equal here; the slab cut just needs the shallowest."""
         return self.groove_depth

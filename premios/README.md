@@ -5,14 +5,15 @@ pinky raised, on a hollowed pedestal, with the category text on a plaque.**
 
 | Output | What it is | Print |
 |---|---|---|
-| `out/figura-punyo.stl` | **Version 1.** Plain geometric fist. | one per award |
-| `out/figura-punyo-cubista.stl` | **Version 2.** Faceted, cubist fist. Same socket, same height. | one per award |
+| `out/figura-punyo.stl` | **V1.** Plain geometric fist. | one per award |
+| `out/figura-punyo-cubista.stl` | **V2.** Faceted, cubist fist. | one per award |
+| `out/figura-punyo-elegante.stl` | **V3.** Tapered, articulated fist built to the brief. | one per award |
 | `out/peana-lisa.stl` | Plain hollowed pedestal. Same pedestal for every award. | once per award |
 | `out/placa-<slug>.stl` | Engraved plaque, one per category. | one per award |
-| `out/previews/figura-comparativa.png` | Both figures, side by side, same scale | — |
+| `out/previews/figura-comparativa.png` | All three figures, side by side, same scale | — |
 
-Print **one** figure version, not both: they share the socket, so either fits the
-same pedestal.
+Print **one** figure version, not all three: they share the socket, so any of
+them fits the same pedestal.
 
 **Route: plaque.** One pedestal design, one plaque per award. The plaque can be a
 contrasting colour, a botched engraving wastes 3.6 cm³ instead of 25, and only
@@ -20,16 +21,19 @@ one pedestal has to be printed and verified. Set `ROUTE = "engraved"` to engrave
 the text straight onto each pedestal instead. Do not mix the two on the same
 pedestal: it would print the text twice.
 
-## Two candidate figures
+## Three candidate figures
 
-Both are a closed fist with the pinky raised, modelled as a solid rather than
-sculpted. They share the same socket and the same 100 mm assembled height, so
-they are directly comparable — and either fits the same pedestal.
+All three are a closed fist with the pinky raised, modelled as a solid rather
+than sculpted. They share the socket and the 100 mm assembled height, so they are
+directly comparable — and any of them fits the same pedestal.
 
-**Look at `out/previews/figura-comparativa.png` before choosing.** The geometry
-is verified by machine (see below), but whether it *reads* as a fist — and as a
+`DESIGN-BRIEF.md` is the sculptural brief that version 3 was built from; versions
+1 and 2 predate it and are kept for comparison.
+
+**Look at `out/previews/figura-comparativa.png` before choosing.** The geometry is
+verified by machine (see below), but whether it *reads* as a fist — and as a
 *pinky* — is a judgement call only a human can make. Iterate on the constants in
-the two scripts and re-run.
+the scripts and re-run.
 
 ### Version 1 — plain geometric (`fist_figure.py`)
 
@@ -37,44 +41,51 @@ the two scripts and re-run.
 a thumb block, a flared wrist, and a pinky rising 26 mm at the outer edge.
 116 faces, deliberately blocky.
 
-### Version 2 — cubist faceted (`fist_cubist.py`)
+### Version 3 — tapered and articulated (`fist_elegant.py`)
 
-The same anatomy with cubist devices applied, all of which happen to be
-printable without supports because every one is either a vertical wall, a top
-surface, or a step small enough to bridge:
+Built from scratch to `DESIGN-BRIEF.md`, with two things the earlier versions
+lack:
 
-| Device | What it does |
-|---|---|
-| **Faceted silhouette** | The body plan is an octagon, not a rectangle, so the outline breaks into planes |
-| **Shattered front plane** | The four finger panels sit at four different depths, in a staircase, so the front is four planes instead of one flat face |
-| **Rotated top** | The top is cut at 4°, rising towards the pinky, tipping the form |
-| **Displaced volumes** | The wrist is a stack of progressively scaled copies of the body plan, and the pinky is two segments offset from each other |
-| **Unequal grooves** | The three grooves differ in depth, so the fingers never look machine-tiled |
+- **It tapers.** A hand is narrow at the wrist and widest across the knuckles. The
+  body is a stack of chamfered sections interpolated along an anatomical profile
+  (`BODY_PROFILE`), so the silhouette swells and the facets follow it. Every
+  section is a vertical prism, so each step is under a millimetre and needs no
+  support, while still reading as a faceted sweep rather than a smooth surface.
+- **It articulates at two rows**, not one: three knuckles along the sloping top
+  and a second row of proximal interphalangeal joints below them. A fist with one
+  row of bumps reads as a box.
 
-868 faces. The measured difference is real, not a label: version 1's grooves all
-come out at exactly 3.00 mm, version 2's at 2.76 / 4.40 / 3.37 mm.
+The pinky is three phalanges with a flexion at every joint — `+8°`, `−5°`, `−6°` —
+so it forms the shallow S-curve of a real extended little finger rather than a
+stiff rod. The thumb is two segments with its own joint, and there is a
+hypothenar pad on the little-finger side of the palm.
 
-### How the raised finger is made to read as the pinky
+The taper also makes it **the cheapest of the three**: 44.4 cm³ against 61–62 cm³,
+about 28 % less material for the same award.
 
-Styling is not allowed to cost this, so three things carry it:
+| | V1 plain | V2 cubist | V3 tapered |
+|---|---|---|---|
+| Body | 40 × 30 × 38 mm | 40 × 30 × 38 mm | tapers 30 → 38 mm wide |
+| Overall | 41.5 × 35 × 79.9 | 42.4 × 34 × 79.8 | 39.2 × 31.1 × 78.8 |
+| Knuckle rows | 1 | 1 | **2** |
+| Pinky | 9 mm, straight | 8.6 mm, 2 offset segments | 8 mm, 3 phalanges, flexed |
+| Pinky axis bow | 0.00 mm | 0.17 mm | **0.51 mm** |
+| Model volume | 61.3 cm³ | 62.5 cm³ | **44.4 cm³** |
+| Faces | 116 | 868 | 1626 |
 
-1. **Three knuckle blocks** sit on the index, middle and ring columns, and the
-   pinky column is left bare. Three knuckles and then a raised finger makes that
-   finger the fourth one along. `verify_figure.py` measures this: at a height
-   clear of the body, version 2 shows four separate regions centred at
-   x = −15.0, −5.0, 5.0 and 15.2 mm, and the pinky column starts at 10.0 mm.
+### Making the raised finger read as the pinky
+
+Styling is not allowed to cost this, so it is carried deliberately:
+
+1. **Three knuckles, and the pinky column left bare.** Three knuckles and then a
+   raised finger makes that finger the fourth one along. `verify_figure.py`
+   measures it: above the fist there are four separate regions, three of them on
+   the thumb side of the pinky column and exactly one beyond it.
 2. **The thumb is on the opposite side**, which fixes the handedness.
-3. **The pinky is the narrowest column** and is articulated into two visible
-   segments, because the pinky is the small finger.
-
-| Figure dimension | Version 1 | Version 2 |
-|---|---|---|
-| Body | 40 × 30 × 38 mm | 40 × 30 × 38 mm |
-| Overall | 41.5 × 35 × 79.9 mm | 42.4 × 34 × 79.8 mm |
-| Pinky | 9 × 9 mm, 26 mm tall | 8.6 × 8.6 mm, 26 mm tall, 2 segments |
-| Tenon | 30 × 22 × 5.7 mm | 30 × 22 × 5.7 mm |
-| Faces | 116 | 868 |
-| Award height | **100 mm** | **100 mm** |
+3. **The pinky is the narrowest column** and the only digit articulated into
+   visible segments above the fist, because the pinky is the small finger.
+4. In V3 the knuckle line **descends towards the pinky**, so the little finger
+   knuckle sits lowest and has further to travel to stand proud.
 
 ## Geometry
 
@@ -121,6 +132,7 @@ uv pip install trimesh svgelements fonttools numpy shapely manifold3d scipy netw
 | `scripts/geometry_common.py` | Shared primitives: boxes, frustums, chamfered rectangles, extrusion |
 | `scripts/fist_figure.py` | Version 1. All its dimensions in one frozen dataclass |
 | `scripts/fist_cubist.py` | Version 2. Same, plus the cubist devices |
+| `scripts/fist_elegant.py` | Version 3. Built to `DESIGN-BRIEF.md` |
 | `scripts/build_premios.py` | Categories, text layout, pedestal, plaque, exports |
 | `scripts/verify_text_geometry.py` | Independent verification of text and parts |
 | `scripts/verify_figure.py` | Verification of **both** figures and the comparison sheet |
@@ -141,6 +153,7 @@ Measured model volumes and estimated filament ranges:
 | Pedestal (hollow, 1.8 mm walls) | 25.0 cm³ | ~25 cm³ — thin walls print solid |
 | Figure v1 (chunky solid) | 61.3 cm³ | ~21 cm³ — the slicer infills it |
 | Figure v2 (chunky solid) | 62.5 cm³ | ~21 cm³ |
+| Figure v3 (tapered solid) | 44.4 cm³ | ~17 cm³ |
 | Plaque | 3.6 cm³ | ~3.6 cm³ |
 
 So **why keep the hollow?** Because it is not about saving filament. It buys an
@@ -198,13 +211,19 @@ measured.
 3. **Knuckles**: one separate region per knuckle plus the pinky, every knuckle on
    the thumb side of the pinky column, exactly one raised finger beyond them.
 4. **The pinky**: alone above the fist, section within 25 % of nominal, thick
-   enough, high enough, and the thumb protruding past the front face.
+   enough, high enough, and the thumb protruding past the front face. Where a
+   version declares a jointed pinky, its axis must **bow at least 0.35 mm off the
+   straight chord** — measured 0.00 mm for V1's straight finger, 0.17 mm for V2's
+   offset segments, 0.51 mm for V3's flexed phalanges. The brief asks for a
+   *perceptible* flexion, so it is measured rather than asserted.
 5. **The socket**: tenon clearance, socket-floor material, and that the assembled
    award is the intended height.
 6. The render convention puts the pinky up and on the right, so the preview
    cannot be silently mirrored or upside down.
 7. The comparison sheet has ink, its shading varies, and every model row drew
    something — a blank image would otherwise pass silently.
+
+`verify_figure.py` runs all of these on **all three** versions with the same code.
 
 ### What is *not* proven
 

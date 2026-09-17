@@ -157,6 +157,11 @@ class FistCubist:
         return max(self.groove_depths)
 
     @property
+    def profile_check_z(self) -> float:
+        """Height at which the finger profile is sampled: inside the grooves."""
+        return self.groove_bottom_z + 5.0
+
+    @property
     def min_groove_depth(self) -> float:
         """Shallowest groove: a slab cut must sit in front of it to open them all."""
         return min(self.groove_depths)
@@ -170,6 +175,11 @@ class FistCubist:
     def knuckle_count(self) -> int:
         """One knuckle per column except the pinky column, which is left bare."""
         return self.fingers - 1
+
+    @property
+    def pinky_axis_start_z(self) -> float:
+        """Above the knuckle blocks, or the axis samples see more than the pinky."""
+        return self.mass_top_z + self.knuckle_height / 2 + 3.0
 
 
 def body_plan(spec: FistCubist) -> Polygon:
