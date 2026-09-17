@@ -26,10 +26,11 @@ import trimesh
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from shapely.affinity import translate
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import Polygon
 
+from fist_cubist import FistCubist, build_fist_cubist
 from fist_figure import FistFigure, build_fist
-from geometry_common import BOOL_OVERSHOOT_MM, box_at, rectangular_frustum
+from geometry_common import BOOL_OVERSHOOT_MM, box_at, extrude, rectangular_frustum
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO_ROOT / "out"
@@ -303,19 +304,6 @@ def _centre_on_origin(geometry: shapely.Geometry) -> shapely.Geometry:
     return translate(geometry, -(min_x + max_x) / 2, -(min_y + max_y) / 2)
 
 
-def _extrude(geometry: shapely.Geometry, height: float) -> trimesh.Trimesh:
-    """Extrude a 2D geometry along +Z, starting at Z=0."""
-    parts = geometry.geoms if isinstance(geometry, MultiPolygon) else [geometry]
-    meshes = [
-        trimesh.creation.extrude_polygon(part, height)
-        for part in parts
-        if isinstance(part, Polygon) and not part.is_empty
-    ]
-    if not meshes:
-        raise ValueError("nothing to extrude")
-    return trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
-
-
 @dataclass(frozen=True)
 class PlacedLine:
     """One engraved line, with the Z of its ink bounding-box centre."""
@@ -368,7 +356,7 @@ def _face_text_solids(
     for line in lines:
         # Extrude along +Z, then rotate +90 deg about X: (x, y, z) -> (x, -z, y).
         # The 2D Y axis becomes the world Z axis, and the extrusion axis becomes Y.
-        solid = _extrude(line.geometry, engrave_depth + BOOL_OVERSHOOT_MM)
+        solid = extrude(line.geometry, engrave_depth + BOOL_OVERSHOOT_MM)
         solid.apply_transform(trimesh.transformations.rotation_matrix(1.5707963, [1, 0, 0]))
         solid.apply_translation([0.0, face_y + engrave_depth, line.center_z])
         solids.append(solid)
@@ -558,19 +546,24 @@ def main() -> int:
         plain.export(OUT_DIR / "peana-lisa.stl")
         report_budget(plain, "peana-lisa.stl")
 
-    # The figure is identical for every award: only the plaque changes.
-    print("figure (shared by every award)")
-    figure_spec = FistFigure()
-    figure = build_fist(figure_spec)
-    validate(figure, "figura-punyo.stl")
-    figure.export(OUT_DIR / "figura-punyo.stl")
-    report_budget(figure, "figura-punyo.stl")
+    # The figure is identical for every award: only the plaque changes. Both
+    # candidate versions are exported so they can be printed and compared.
+    print("figures (one per award, shared by every category)")
+    figures = [
+        ("figura-punyo", FistFigure(), build_fist),
+        ("figura-punyo-cubista", FistCubist(), build_fist_cubist),
+    ]
+    for slug, figure_spec, builder in figures:
+        figure = builder(figure_spec)
+        validate(figure, f"{slug}.stl")
+        figure.export(OUT_DIR / f"{slug}.stl")
+        report_budget(figure, f"{slug}.stl")
+    tenon = figures[0][1]
     print(
-        f"         tenon {figure_spec.tenon_width}x{figure_spec.tenon_depth}"
-        f"x{figure_spec.tenon_height} mm into the "
-        f"{pedestal_spec.socket_width}x{pedestal_spec.socket_depth}"
+        f"         tenon {tenon.tenon_width}x{tenon.tenon_depth}x{tenon.tenon_height} mm "
+        f"into the {pedestal_spec.socket_width}x{pedestal_spec.socket_depth}"
         f"x{pedestal_spec.socket_recess} mm socket; "
-        f"award height {pedestal_spec.height + figure_spec.top_z - figure_spec.tenon_height:.0f} mm"
+        f"award height {pedestal_spec.height + tenon.top_z - tenon.tenon_height:.0f} mm"
     )
 
     for category in CATEGORIES:

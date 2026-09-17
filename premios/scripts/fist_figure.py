@@ -92,6 +92,20 @@ class FistFigure:
     def front_y(self) -> float:
         return -self.mass_depth / 2
 
+    @property
+    def min_groove_depth(self) -> float:
+        """All grooves are equal here; the slab cut just needs the shallowest."""
+        return self.groove_depth
+
+    @property
+    def nominal_pinky_area(self) -> float:
+        return self.pinky_width * self.pinky_depth
+
+    @property
+    def knuckle_count(self) -> int:
+        """No knuckle blocks in this version: the flat top is the whole story."""
+        return 0
+
 
 def _tenon(spec: FistFigure) -> trimesh.Trimesh:
     """Overlaps the wrist flare so the union has no coplanar faces."""
