@@ -28,6 +28,7 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from shapely.affinity import translate
 from shapely.geometry import Polygon
 
+from fist_carved import FistCarved, build_fist_carved
 from fist_cubist import FistCubist, build_fist_cubist
 from fist_elegant import FistElegant, build_fist_elegant
 from fist_figure import FistFigure, build_fist
@@ -166,6 +167,15 @@ CATEGORIES: list[Category] = [
         title="ConRol 2026",
         subtitle="POR APORTAR UNA ACTIVIDAD",
         body=("PORQUE SIN TI", "ESTO NO VUELVE A LATIR"),
+    ),
+    # Straight from the reference sculpture's base plaque, which reads
+    # "EL REFINAMIENTO DEL GESTO" over "(Marmol de Carrara) - 2024". The same
+    # affected museum label, but honest about the material. Delete this entry if
+    # you would rather not have an eighth award.
+    Category(
+        slug="refinament",
+        title="EL REFINAMIENTO DEL GESTO",
+        subtitle="(PLA) \u00b7 2026",
     ),
     Category(
         slug="dramaqeen",
@@ -554,6 +564,7 @@ def main() -> int:
         ("figura-punyo", FistFigure(), build_fist),
         ("figura-punyo-cubista", FistCubist(), build_fist_cubist),
         ("figura-punyo-elegante", FistElegant(), build_fist_elegant),
+        ("figura-punyo-tallado", FistCarved(), build_fist_carved),
     ]
     for slug, figure_spec, builder in figures:
         figure = builder(figure_spec)

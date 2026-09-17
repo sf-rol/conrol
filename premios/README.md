@@ -1,19 +1,21 @@
 # ConRol awards — parametric 3D generator 🤖
 
 Generates the complete ConRol 2026 award from code: **a closed fist with the
-pinky raised, on a hollowed pedestal, with the category text on a plaque.**
+pinky raised, four candidate versions of it, a hollowed pedestal, and the
+category text on a plaque.**
 
 | Output | What it is | Print |
 |---|---|---|
 | `out/figura-punyo.stl` | **V1.** Plain geometric fist. | one per award |
 | `out/figura-punyo-cubista.stl` | **V2.** Faceted, cubist fist. | one per award |
 | `out/figura-punyo-elegante.stl` | **V3.** Tapered, articulated fist built to the brief. | one per award |
+| `out/figura-punyo-tallado.stl` | **V4.** Carved faceted fist, after the marble reference. | one per award |
 | `out/peana-lisa.stl` | Plain hollowed pedestal. Same pedestal for every award. | once per award |
 | `out/placa-<slug>.stl` | Engraved plaque, one per category. | one per award |
-| `out/previews/figura-comparativa.png` | All three figures, side by side, same scale | — |
+| `out/previews/figura-comparativa.png` | All four figures, side by side, same scale | — |
 
-Print **one** figure version, not all three: they share the socket, so any of
-them fits the same pedestal.
+Print **one** figure version, not all four: they share the socket, so any of them
+fits the same pedestal.
 
 **Route: plaque.** One pedestal design, one plaque per award. The plaque can be a
 contrasting colour, a botched engraving wastes 3.6 cm³ instead of 25, and only
@@ -21,14 +23,15 @@ one pedestal has to be printed and verified. Set `ROUTE = "engraved"` to engrave
 the text straight onto each pedestal instead. Do not mix the two on the same
 pedestal: it would print the text twice.
 
-## Three candidate figures
+## Four candidate figures
 
-All three are a closed fist with the pinky raised, modelled as a solid rather
-than sculpted. They share the socket and the 100 mm assembled height, so they are
+All four are a closed fist with the pinky raised, modelled as a solid rather than
+sculpted. They share the socket and the 100 mm assembled height, so they are
 directly comparable — and any of them fits the same pedestal.
 
 `DESIGN-BRIEF.md` is the sculptural brief that version 3 was built from; versions
-1 and 2 predate it and are kept for comparison.
+1 and 2 predate it, and version 4 comes from a reference sculpture. All are kept
+so they can be printed and compared.
 
 **Look at `out/previews/figura-comparativa.png` before choosing.** The geometry is
 verified by machine (see below), but whether it *reads* as a fist — and as a
@@ -41,37 +44,77 @@ the scripts and re-run.
 a thumb block, a flared wrist, and a pinky rising 26 mm at the outer edge.
 116 faces, deliberately blocky.
 
+### Version 2 — cubist faceted (`fist_cubist.py`)
+
+The same boxy anatomy with cubist devices applied, each of which happens to be
+printable without supports because it is a vertical wall, a top surface, or a
+step small enough to bridge: a faceted octagonal plan; the four finger panels at
+four different depths; a top cut at 4°; the wrist as a stack of scaled copies of
+the plan; the pinky as two offset segments; and unequal groove depths, so the
+fingers never look machine-tiled. 868 faces.
+
 ### Version 3 — tapered and articulated (`fist_elegant.py`)
 
-Built from scratch to `DESIGN-BRIEF.md`, with two things the earlier versions
+Built from scratch to `DESIGN-BRIEF.md`, with the two things the earlier versions
 lack:
 
 - **It tapers.** A hand is narrow at the wrist and widest across the knuckles. The
   body is a stack of chamfered sections interpolated along an anatomical profile
   (`BODY_PROFILE`), so the silhouette swells and the facets follow it. Every
-  section is a vertical prism, so each step is under a millimetre and needs no
+  section is a vertical prism, so each step stays under a millimetre and needs no
   support, while still reading as a faceted sweep rather than a smooth surface.
 - **It articulates at two rows**, not one: three knuckles along the sloping top
-  and a second row of proximal interphalangeal joints below them. A fist with one
-  row of bumps reads as a box.
+  and a second row of interphalangeal joints below them. A fist with one row of
+  bumps reads as a box.
 
 The pinky is three phalanges with a flexion at every joint — `+8°`, `−5°`, `−6°` —
 so it forms the shallow S-curve of a real extended little finger rather than a
 stiff rod. The thumb is two segments with its own joint, and there is a
 hypothenar pad on the little-finger side of the palm.
 
-The taper also makes it **the cheapest of the three**: 44.4 cm³ against 61–62 cm³,
-about 28 % less material for the same award.
+### Version 4 — carved faceted (`fist_carved.py`)
 
-| | V1 plain | V2 cubist | V3 tapered |
-|---|---|---|---|
-| Body | 40 × 30 × 38 mm | 40 × 30 × 38 mm | tapers 30 → 38 mm wide |
-| Overall | 41.5 × 35 × 79.9 | 42.4 × 34 × 79.8 | 39.2 × 31.1 × 78.8 |
-| Knuckle rows | 1 | 1 | **2** |
-| Pinky | 9 mm, straight | 8.6 mm, 2 offset segments | 8 mm, 3 phalanges, flexed |
-| Pinky axis bow | 0.00 mm | 0.17 mm | **0.51 mm** |
-| Model volume | 61.3 cm³ | 62.5 cm³ | **44.4 cm³** |
-| Faces | 116 | 868 | 1626 |
+Built from a description of a reference sculpture: white Carrara marble, faceted
+low-poly with flat angular planes, upright on the wrist, fingers curled into a
+**loose** fist, the little finger fully extended and pointing up at a slight
+angle, on a bronze base.
+
+> **Provenance note.** This version was built from a *written description* of that
+> image, not from the image itself. A consequence: the marble veining, the bronze
+> base and the plaque layout are not reproduced — the veining is a material
+> effect, not geometry. Print it in white or marble-effect PLA and the facets do
+> the rest. The reference plaque reads *EL REFINAMIENTO DEL GESTO* over
+> *(Mármol de Carrara) · 2024*; that title is available as the `refinament`
+> category, with the medium line honestly changed to `(PLA) · 2026`.
+
+That reference called for a different construction, because stacked slices cannot
+produce it. Carved marble faceting is **few large planes meeting at sharp
+creases**, whereas version 3's eighteen sections produce a staircase. So version 4
+is built the way a carver works:
+
+1. **Rough out the massing** as the convex hull of seven section rings. Eight
+   vertices per ring and seven rings gives facets 6–9 mm tall whose angle changes
+   from level to level — which is the low-poly marble idiom.
+2. **Cut the concavities**, which a convex hull cannot express: the three finger
+   grooves, a deep notch standing the little finger clear of the hand, and the
+   sloping top.
+3. **Add the digits that leave the mass**: the thumb and the little finger.
+
+The facet count is the point. Version 4 has **800 faces against version 3's
+1626** — half as many, twice as large.
+
+It also has the reference's notch: a wedge cut between the ring and little finger
+columns so the pinky stands clear of the fist instead of emerging from a ridge.
+
+| | V1 plain | V2 cubist | V3 tapered | V4 carved |
+|---|---|---|---|---|
+| Body | 40 × 30 × 38 | 40 × 30 × 38 | tapers 30 → 38 | rough-out hull, 29 → 38 |
+| Overall | 41.5 × 35 × 79.9 | 42.4 × 34 × 79.8 | 39.2 × 31.1 × 78.8 | 38.0 × 30.9 × 80.3 |
+| Knuckle rows | 1 | 1 | **2** | **2** |
+| Pinky | 9 mm, straight | 8.6 mm, 2 offset | 8 mm, flexed 8/−5/−6 | 8.2 mm, flexed 7/−4/−4 |
+| Pinky axis bow | 0.00 mm | 0.17 mm | 0.51 mm | 0.38 mm |
+| Faces | 116 | 868 | 1626 | **800** |
+| Model volume | 61.3 cm³ | 62.5 cm³ | 44.4 cm³ | **43.2 cm³** |
 
 ### Making the raised finger read as the pinky
 
@@ -124,7 +167,7 @@ uv pip install trimesh svgelements fonttools numpy shapely manifold3d scipy netw
 
 .venv/bin/python scripts/build_premios.py          # writes out/*.stl
 .venv/bin/python scripts/verify_text_geometry.py   # text, pedestal, hollowing
-.venv/bin/python scripts/verify_figure.py          # both fists, plus the comparison PNG
+.venv/bin/python scripts/verify_figure.py          # all four fists, plus the comparison PNG
 ```
 
 | Script | Role |
@@ -133,9 +176,10 @@ uv pip install trimesh svgelements fonttools numpy shapely manifold3d scipy netw
 | `scripts/fist_figure.py` | Version 1. All its dimensions in one frozen dataclass |
 | `scripts/fist_cubist.py` | Version 2. Same, plus the cubist devices |
 | `scripts/fist_elegant.py` | Version 3. Built to `DESIGN-BRIEF.md` |
+| `scripts/fist_carved.py` | Version 4. Built from the marble reference |
 | `scripts/build_premios.py` | Categories, text layout, pedestal, plaque, exports |
 | `scripts/verify_text_geometry.py` | Independent verification of text and parts |
-| `scripts/verify_figure.py` | Verification of **both** figures and the comparison sheet |
+| `scripts/verify_figure.py` | Verification of **all four** figures and the comparison sheet |
 
 ## Honest print budget
 
@@ -154,6 +198,7 @@ Measured model volumes and estimated filament ranges:
 | Figure v1 (chunky solid) | 61.3 cm³ | ~21 cm³ — the slicer infills it |
 | Figure v2 (chunky solid) | 62.5 cm³ | ~21 cm³ |
 | Figure v3 (tapered solid) | 44.4 cm³ | ~17 cm³ |
+| Figure v4 (carved solid) | 43.2 cm³ | ~16 cm³ |
 | Plaque | 3.6 cm³ | ~3.6 cm³ |
 
 So **why keep the hollow?** Because it is not about saving filament. It buys an
@@ -223,7 +268,7 @@ measured.
 7. The comparison sheet has ink, its shading varies, and every model row drew
    something — a blank image would otherwise pass silently.
 
-`verify_figure.py` runs all of these on **all three** versions with the same code.
+`verify_figure.py` runs all of these on **all four** versions with the same code.
 
 ### What is *not* proven
 

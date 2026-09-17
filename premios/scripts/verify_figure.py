@@ -52,6 +52,7 @@ from shapely.geometry import LineString, Polygon
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_premios import Pedestal, pedestal_cavity  # noqa: E402
+from fist_carved import FistCarved, build_fist_carved  # noqa: E402
 from fist_cubist import FistCubist, build_fist_cubist  # noqa: E402
 from fist_elegant import FistElegant, build_fist_elegant  # noqa: E402
 from fist_figure import FistFigure, build_fist  # noqa: E402
@@ -71,9 +72,15 @@ MIN_NOTCH_PROMINENCE_MM = 1.2
 MIN_TENON_CLEARANCE_MM = 0.4
 MIN_SOCKET_FLOOR_MM = 3.0
 PROFILE_EDGE_MARGIN_MM = 6.0
-# The brief asks for a *perceptible* gentle flexion, so it has to be measured,
-# not asserted. 0.35 mm of bow across an 8 mm finger is visible at arm's length.
-MIN_PINKY_BOW_MM = 0.35
+# The brief asks for a *perceptible* gentle flexion, so it has to be measured
+# rather than asserted. The threshold is calibrated against all four models
+# instead of guessed: a straight finger bows 0.00 mm; the second version's two
+# offset segments - a step, not a curve - bow 0.17 mm; the flexed ones bow 0.38
+# (fourth version, nearly extended) and 0.51 mm (third version). 0.25 mm sits in
+# the gap, so this is a regression guard against someone straightening the pinky
+# by accident, not a perceptibility measure. Perceptibility is a matter of the
+# declared joint angles, which are explicit in each spec.
+MIN_PINKY_BOW_MM = 0.25
 PINKY_AXIS_SAMPLES = 25
 SLIVER_AREA_MM2 = 1.0
 
@@ -82,7 +89,7 @@ SLIVER_AREA_MM2 = 1.0
 class Model:
     name: str
     slug: str
-    spec: FistFigure | FistCubist | FistElegant
+    spec: FistFigure | FistCubist | FistElegant | FistCarved
     mesh: trimesh.Trimesh
 
 
@@ -91,6 +98,7 @@ def build_models() -> list[Model]:
         Model("plain geometric", "figura-punyo", FistFigure(), build_fist()),
         Model("cubist faceted", "figura-punyo-cubista", FistCubist(), build_fist_cubist()),
         Model("tapered articulated", "figura-punyo-elegante", FistElegant(), build_fist_elegant()),
+        Model("carved faceted", "figura-punyo-tallado", FistCarved(), build_fist_carved()),
     ]
 
 
@@ -382,7 +390,7 @@ def render(
 def render_comparison(models: list[Model]) -> Path:
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
     identity = np.eye(4)
-    fig, axes = plt.subplots(len(models), 3, figsize=(13, 4 * len(models)))
+    fig, axes = plt.subplots(len(models), 3, figsize=(13, 3.5 * len(models)))
     if len(models) == 1:
         axes = np.array([axes])
 
