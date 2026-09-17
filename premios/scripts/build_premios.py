@@ -28,16 +28,21 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from shapely.affinity import translate
 from shapely.geometry import MultiPolygon, Polygon
 
+from fist_figure import FistFigure, build_fist
+from geometry_common import BOOL_OVERSHOOT_MM, box_at, rectangular_frustum
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO_ROOT / "out"
 
 FONT_PATH = Path("/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf")
 
+# Slicing assumptions used only for the filament estimate, not for the geometry.
+INFILL_FRACTION = 0.15
+PERIMETER_WIDTH_MM = 1.26
+
 # Densities in millimetres.
 CURVE_STEP_MM = 0.08
 SIMPLIFY_MM = 0.015
-# Extra stock so the engraving boolean cuts cleanly through the surface.
-BOOL_OVERSHOOT_MM = 0.6
 
 # How the text reaches the award.
 #   "plaque"   - one plain pedestal for every award, text on a glued plaque.
@@ -69,17 +74,24 @@ class TextLayout:
 
 @dataclass(frozen=True)
 class Pedestal:
-    """Box pedestal, in millimetres, sitting on Z=0 and centred on X/Y."""
+    """Box pedestal, in millimetres, sitting on Z=0 and centred on X/Y.
+
+    The figure sits in a rectangular socket (a mortise) rather than a thin
+    slot: a three-dimensional fist needs a footprint it can stand in, and the
+    mortise gives the joint shear strength so the figure cannot be knocked off
+    sideways. `socket_clearance_mm` is the slop per side that lets the tenon
+    actually drop in on a real printer.
+    """
 
     length: float = 72.0  # X
     depth: float = 34.0  # Y
     height: float = 26.0  # Z
-    slot_length: float = 46.0
-    slot_width: float = 2.6
-    slot_depth: float = 8.0
+    socket_width: float = 30.5
+    socket_depth: float = 22.5
+    socket_recess: float = 6.0
     layout: TextLayout = field(default_factory=TextLayout)
     hollow: bool = True
-    hollow_wall_mm: float = 2.4
+    hollow_wall_mm: float = 1.8
     hollow_roof_rise_mm: float = 3.0
     hollow_roof_clearance_mm: float = 3.0
 
@@ -88,18 +100,18 @@ class Pedestal:
         return self.depth
 
     @property
+    def socket_floor_z(self) -> float:
+        return self.height - self.socket_recess
+
+    @property
     def hollow_roof_z(self) -> float:
         """Top of the cavity.
 
-        Kept at least `hollow_roof_clearance_mm` below the figure slot: the
-        floor of that slot is thin, and at 1 mm of clearance a figure that
-        wobbles in the pocket cracks straight through it.
+        Kept at least `hollow_roof_clearance_mm` below the socket floor: that
+        floor is thin, and a figure that rocks in the mortise would crack
+        straight through a thinner one.
         """
-        return self.height - self.slot_depth - self.hollow_roof_clearance_mm
-
-    @property
-    def slot_floor_z(self) -> float:
-        return self.height - self.slot_depth
+        return self.socket_floor_z - self.hollow_roof_clearance_mm
 
     @property
     def text_area_half_width(self) -> float:
@@ -395,44 +407,20 @@ def _engraved_text(
     return solids
 
 
-def _rectangular_frustum(
-    bottom: tuple[float, float], top: tuple[float, float], height: float
-) -> trimesh.Trimesh:
-    """Rectangular frustum from Z=0 to Z=height, centred on X/Y."""
-    bottom_x, bottom_y = bottom[0] / 2, bottom[1] / 2
-    top_x, top_y = top[0] / 2, top[1] / 2
-    vertices = [
-        (-bottom_x, -bottom_y, 0.0),
-        (bottom_x, -bottom_y, 0.0),
-        (bottom_x, bottom_y, 0.0),
-        (-bottom_x, bottom_y, 0.0),
-        (-top_x, -top_y, height),
-        (top_x, -top_y, height),
-        (top_x, top_y, height),
-        (-top_x, top_y, height),
-    ]
-    faces = [
-        [0, 2, 1], [0, 3, 2],  # bottom, facing -Z
-        [4, 5, 6], [4, 6, 7],  # top, facing +Z
-        [0, 1, 5], [0, 5, 4],
-        [1, 2, 6], [1, 6, 5],
-        [2, 3, 7], [2, 7, 6],
-        [3, 0, 4], [3, 4, 7],
-    ]
-    mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
-    mesh.fix_normals()
-    return mesh
-
-
 def pedestal_cavity(spec: Pedestal) -> trimesh.Trimesh | None:
     """Hollow volume removed from underneath the pedestal.
 
-    A 26 mm solid block is 62.6 cm3 of filament, which across a full set of
-    awards is tens of hours of printing. Removing it from below leaves
-    straighter walls and an open bottom - a sealed internal void is simply not
-    printable on an FDM machine - and the cavity is a convenient pocket for
-    weighting the award with sand or a bolt. The roof tapers at 45 degrees so
-    it prints without supports, and it is kept clear of the figure slot.
+    Note what this does and does not buy. A 26 mm solid block is 63.6 cm3 of
+    *model*, but a slicer printing it at 15% infill would only use about
+    20-25 cm3 of filament, so hollowing is not the material saving it looks
+    like. What it actually buys is a uniform, predictable wall instead of
+    whatever infill the slicer picks, and - the real point - an open pocket you
+    can fill with sand. A 100 mm figure on a light base tips over the first
+    time someone brushes the table, and ballast is the only thing that fixes
+    that. `scripts/build_premios.py` prints the estimated filament both ways.
+
+    The bottom is left open (a sealed internal void is not printable on FDM)
+    and the roof tapers at 45 degrees so it needs no supports.
     """
     if not spec.hollow:
         return None
@@ -447,7 +435,7 @@ def pedestal_cavity(spec: Pedestal) -> trimesh.Trimesh | None:
     walls = trimesh.creation.box(extents=[cavity_length, cavity_depth, wall_height])
     walls.apply_translation([0.0, 0.0, straight_top_z - wall_height / 2])
 
-    roof = _rectangular_frustum(
+    roof = rectangular_frustum(
         (cavity_length, cavity_depth),
         (
             cavity_length - 2 * spec.hollow_roof_rise_mm,
@@ -479,16 +467,14 @@ def build_pedestal(font: GlyphFont, category: Category, spec: Pedestal) -> trime
     base = trimesh.creation.box(extents=[spec.length, spec.depth, spec.height])
     base.apply_translation([0.0, 0.0, spec.height / 2])
 
-    slot = trimesh.creation.box(
-        extents=[spec.slot_length, spec.slot_width, spec.slot_depth + 1.0]
-    )
-    slot.apply_translation(
-        [0.0, 0.0, spec.height - spec.slot_depth + (spec.slot_depth + 1.0) / 2]
+    socket = box_at(
+        (spec.socket_width, spec.socket_depth, spec.socket_recess + BOOL_OVERSHOOT_MM),
+        (0.0, 0.0, spec.socket_floor_z + (spec.socket_recess + BOOL_OVERSHOOT_MM) / 2),
     )
 
     texts = _engraved_text(font, category, spec, face_y=-spec.depth / 2)
     cavity = pedestal_cavity(spec)
-    cutters = [slot, *texts]
+    cutters = [socket, *texts]
     if cavity is not None:
         cutters.extend([cavity, _bottom_opener(cavity)])
     return trimesh.boolean.difference([base, *cutters], engine="manifold")
@@ -524,6 +510,35 @@ def validate(mesh: trimesh.Trimesh, label: str) -> None:
         raise SystemExit(f"validation failed for {label}")
 
 
+def filament_range(mesh: trimesh.Trimesh) -> tuple[float, float, float]:
+    """Estimate the filament a slicer will use, in cm3, as (low, high, model).
+
+    The model volume is exact. What the printer consumes is not, because it
+    depends on perimeters, infill and how the slicer treats thin walls:
+
+      low  - perimeters on every surface plus `infill` everywhere else. Valid
+             for a chunky solid.
+      high - the whole model volume, which is what a thin-walled shell costs
+             because the slicer fills those walls solid.
+
+    Reporting the range keeps the model volume from being mistaken for the
+    print cost.
+    """
+    shell = mesh.area * PERIMETER_WIDTH_MM
+    interior = max(0.0, mesh.volume - shell)
+    low = shell + interior * INFILL_FRACTION
+    return low / 1000, mesh.volume / 1000, mesh.volume / 1000
+
+
+def report_budget(mesh: trimesh.Trimesh, label: str) -> None:
+    low, high, model = filament_range(mesh)
+    print(
+        f"         {label}: model {model:.1f} cm3 | estimated filament "
+        f"{low:.1f}-{high:.1f} cm3 at {INFILL_FRACTION:.0%} infill, "
+        f"{PERIMETER_WIDTH_MM} mm perimeters"
+    )
+
+
 def main() -> int:
     if not FONT_PATH.exists():
         raise SystemExit(f"font not found: {FONT_PATH}")
@@ -541,6 +556,22 @@ def main() -> int:
         plain = build_pedestal(font, Category(slug="lisa", title="", subtitle=""), pedestal_spec)
         validate(plain, "peana-lisa.stl")
         plain.export(OUT_DIR / "peana-lisa.stl")
+        report_budget(plain, "peana-lisa.stl")
+
+    # The figure is identical for every award: only the plaque changes.
+    print("figure (shared by every award)")
+    figure_spec = FistFigure()
+    figure = build_fist(figure_spec)
+    validate(figure, "figura-punyo.stl")
+    figure.export(OUT_DIR / "figura-punyo.stl")
+    report_budget(figure, "figura-punyo.stl")
+    print(
+        f"         tenon {figure_spec.tenon_width}x{figure_spec.tenon_depth}"
+        f"x{figure_spec.tenon_height} mm into the "
+        f"{pedestal_spec.socket_width}x{pedestal_spec.socket_depth}"
+        f"x{pedestal_spec.socket_recess} mm socket; "
+        f"award height {pedestal_spec.height + figure_spec.top_z - figure_spec.tenon_height:.0f} mm"
+    )
 
     for category in CATEGORIES:
         print(f"category: {category.slug}")

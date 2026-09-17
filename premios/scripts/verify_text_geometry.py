@@ -184,7 +184,7 @@ def check_material_removal(font: GlyphFont) -> bool:
     ):
         solid_volume = part.length * part.thickness * part.height
         slot_volume = (
-            part.slot_length * part.slot_width * part.slot_depth
+            part.socket_width * part.socket_depth * part.socket_recess
             if isinstance(part, Pedestal)
             else 0.0
         )
@@ -281,22 +281,26 @@ def check_hollow(font: GlyphFont) -> bool:
 
     solid = spec.length * spec.depth * spec.height
     saved = cavity.volume / solid
-    clearance = spec.slot_floor_z - spec.hollow_roof_z
+    clearance = spec.socket_floor_z - spec.hollow_roof_z
     wall = (spec.length - (cavity.bounds[1][0] - cavity.bounds[0][0])) / 2
 
     checks = {
-        "wall thickness >= 2.4 mm": wall >= 2.4 - 1e-6,
-        "slot floor clearance >= 3 mm": clearance >= 3.0 - 1e-6,
+        "wall thickness matches the spec": wall >= spec.hollow_wall_mm - 1e-6,
+        "socket floor clearance >= 3 mm": clearance >= 3.0 - 1e-6,
         "cavity reaches the bottom face (not sealed)": cavity.bounds[0][2] <= 0.0,
-        "cavity clears the slot": cavity.bounds[1][2] <= spec.slot_floor_z - 3.0 + 1e-6,
+        "cavity clears the socket": cavity.bounds[1][2] <= spec.socket_floor_z - 3.0 + 1e-6,
     }
     ok = all(checks.values())
     for label, passed in checks.items():
         print(f"  [{'PASS' if passed else 'FAIL'}] {label}")
     print(
-        f"  material saved by hollowing: {saved * 100:.0f}% "
+        f"  hollowing removes {saved * 100:.0f}% of the model volume "
         f"({cavity.volume / 1000:.1f} cm3 cavity, wall {wall:.1f} mm, "
         f"clearance {clearance:.1f} mm)"
+    )
+    print(
+        "  NOTE: model volume is not print cost. See the filament estimate in\n"
+        "        build_premios.py output before claiming this saves material."
     )
     return bool(ok)
 
