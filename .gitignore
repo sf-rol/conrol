@@ -9,3 +9,7 @@ Thumbs.db
 # Backup
 *.bak
 *.tmp
+
+# Python tooling (premios generator)
+premios/.venv/
+__pycache__/
