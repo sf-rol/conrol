@@ -75,7 +75,7 @@ PROFILE_EDGE_MARGIN_MM = 6.0
 # The brief asks for a *perceptible* gentle flexion, so it has to be measured
 # rather than asserted. The threshold is calibrated against all four models
 # instead of guessed: a straight finger bows 0.00 mm; the second version's two
-# offset segments - a step, not a curve - bow 0.17 mm; the flexed ones bow 0.38
+# offset segments - a step, not a curve - bow 0.17 mm; the flexed ones bow 0.36
 # (fourth version, nearly extended) and 0.51 mm (third version). 0.25 mm sits in
 # the gap, so this is a regression guard against someone straightening the pinky
 # by accident, not a perceptibility measure. Perceptibility is a matter of the

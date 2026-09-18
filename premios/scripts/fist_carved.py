@@ -35,16 +35,27 @@ from shapely.geometry import Polygon
 
 from geometry_common import BOOL_OVERSHOOT_MM, box_at, chamfered_rect, extrude, rectangular_frustum
 
-# The rough-out: (height above the tenon, width, depth). Seven rings, so the
-# facets between them are 6 to 9 mm tall - big enough to read as carved planes.
+# The rough-out: (height above the tenon, width, depth).
+#
+# REVISION: the first attempt made every ring the same width:depth ratio
+# (1.35-1.40 across all seven levels) and a body only 1.18x taller than it was
+# wide. That is, measurably, a box: uniformly scaling one rectangle at every
+# height reads as a box no matter how the corners are chamfered, independently
+# of anything about the pinky or the grooves. Nobody needed to see the render to
+# find that - it is visible in the numbers.
+#
+# Fixed two ways: the height:width ratio goes from 1.18 to 1.6 (a hand is
+# narrow next to how tall it stands, wrist to knuckles), and the width:depth
+# ratio now varies per ring (1.52-1.75) instead of holding constant, so the hull
+# is not one shape scaled uniformly seven times.
 ROUGH_RINGS: tuple[tuple[float, float, float], ...] = (
-    (0.0, 31.0, 23.0),
-    (6.0, 29.0, 21.5),
-    (14.0, 33.0, 24.5),
-    (23.0, 36.5, 26.5),
-    (32.0, 38.0, 27.5),
-    (39.0, 36.8, 26.4),
-    (45.0, 33.5, 24.0),
+    (0.0, 24.5, 14.5),
+    (7.0, 21.0, 12.0),
+    (16.0, 25.0, 16.5),
+    (26.0, 28.0, 18.0),
+    (36.0, 30.0, 19.0),
+    (43.0, 28.5, 17.5),
+    (48.0, 25.5, 15.5),
 )
 
 
@@ -62,57 +73,65 @@ class FistCarved:
 
     # Fingers: a loose fist, so the grooves are cut but not deep.
     fingers: int = 4
-    groove_width: float = 3.0
-    groove_depths: tuple[float, ...] = (3.2, 4.0, 2.6)
+    groove_width: float = 2.5
+    groove_depths: tuple[float, ...] = (2.4, 3.1, 2.0)
     groove_bottom_fraction: float = 0.30
 
     # The notch that frees the little finger from the hand. Without it the
     # reference's outline - a finger standing clear of the fist - is lost.
-    separation_width: float = 4.2
-    separation_depth: float = 4.4
-    separation_rise: float = 13.0
+    separation_width: float = 3.4
+    separation_depth: float = 3.6
+    separation_rise: float = 13.5
 
     # Knuckles: facets, not blocks. A steeper pyramid than the third version's,
     # so they read as chiselled planes.
-    knuckle_height: float = 4.6
-    knuckle_depth: float = 10.5
-    knuckle_gap: float = 1.4
+    knuckle_height: float = 4.0
+    knuckle_depth: float = 8.5
+    knuckle_gap: float = 1.2
     knuckle_top_scale: float = 0.50
     knuckle_rise: float = 0.8
     articulation_sink: float = 4.0
-    phalange_height: float = 2.6
-    phalange_depth: float = 8.0
+    phalange_height: float = 2.3
+    phalange_depth: float = 6.5
     phalange_top_scale: float = 0.48
     phalange_center_fraction: float = 0.56
 
     top_tilt_deg: float = 4.0
 
-    # Thumb, crossing the front in two faceted segments.
-    thumb_length: float = 15.0
-    thumb_thickness: float = 8.5
-    thumb_depth: float = 12.0
-    thumb_proud: float = 3.4
-    thumb_chamfer: float = 2.6
+    # Thumb, crossing the front in two faceted segments. Scaled down with the
+    # slimmer hand (0.79x the old width) so it stays in proportion.
+    thumb_length: float = 12.0
+    thumb_thickness: float = 7.5
+    thumb_depth: float = 10.0
+    thumb_proud: float = 2.8
+    thumb_chamfer: float = 2.1
     thumb_angle_deg: float = 14.0
-    thumb_center_x: float = -7.5
+    thumb_center_x: float = -5.6
     thumb_center_fraction: float = 0.30
-    thumb_tip_length: float = 9.0
-    thumb_tip_thickness: float = 7.5
+    thumb_tip_length: float = 7.2
+    thumb_tip_thickness: float = 6.2
     thumb_tip_dip_deg: float = 16.0
     thumb_tip_curl_deg: float = 11.0
-    thumb_tip_overlap: float = 2.0
+    thumb_tip_overlap: float = 1.7
+
+    # Thenar pad: the thumb-side bulge, baked into the rough-out itself (see
+    # `_thenar_bump`) rather than glued on, so the side profile is not flat.
+    thenar_center_fraction: float = 0.30
+    thenar_proud: float = 1.9
 
     # Little finger: fully extended, as in the reference, so the flexion is a
     # hint rather than a curl - but it must still be measurable, because a
-    # straight digit reads as a rod and not as a gesture.
-    pinky_width: float = 8.2
-    pinky_depth: float = 8.2
-    pinky_chamfer: float = 2.6
-    pinky_phalanges: tuple[float, ...] = (12.0, 9.5, 8.0)
+    # straight digit reads as a rod and not as a gesture. Slightly longer than
+    # the third version's, because the reference shows it standing nearly as
+    # tall as the fist itself.
+    pinky_width: float = 7.3
+    pinky_depth: float = 7.3
+    pinky_chamfer: float = 2.1
+    pinky_phalanges: tuple[float, ...] = (13.0, 10.0, 8.0)
     pinky_flexion_deg: tuple[float, ...] = (7.0, -4.0, -4.0)
     pinky_taper: float = 0.95
-    pinky_lean_deg: float = 4.0
-    pinky_joint_overlap: float = 2.5
+    pinky_lean_deg: float = 3.0
+    pinky_joint_overlap: float = 2.2
 
     # --- derived -----------------------------------------------------------
 
@@ -208,6 +227,19 @@ def _columns(width: float, fingers: int) -> list[tuple[float, float]]:
     return [(-width / 2 + index * step, -width / 2 + (index + 1) * step) for index in range(fingers)]
 
 
+def _thenar_bump(spec: FistCarved) -> tuple[float, float, float]:
+    """One extra hull point: the thumb-side pad, so that side of the hand is
+    not a flat plane between the wrist and the knuckle line.
+
+    A single point pushed outward is a simplification of the thenar eminence,
+    not an anatomical study, but it is enough to break the flat side and it
+    costs nothing to verify: it only ever makes the hull wider on one side.
+    """
+    height = spec.thenar_center_fraction * ROUGH_RINGS[-1][0]
+    width, depth = profile_at(height)
+    return (-width / 2 - spec.thenar_proud, -depth * 0.1, spec.tenon_height + height)
+
+
 def _rough_out(spec: FistCarved) -> trimesh.Trimesh:
     """Convex hull of the section rings: the carved block before any cutting.
 
@@ -220,6 +252,7 @@ def _rough_out(spec: FistCarved) -> trimesh.Trimesh:
     for height, width, depth in ROUGH_RINGS:
         ring = chamfered_rect(width, depth, spec.ring_chamfer_ratio * min(width, depth))
         points.extend((x, y, spec.tenon_height + height) for x, y in ring.exterior.coords[:-1])
+    points.append(_thenar_bump(spec))
     hull = trimesh.Trimesh(vertices=np.array(points, dtype=float), process=False).convex_hull
     return hull
 

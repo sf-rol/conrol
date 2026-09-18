@@ -571,13 +571,14 @@ def main() -> int:
         validate(figure, f"{slug}.stl")
         figure.export(OUT_DIR / f"{slug}.stl")
         report_budget(figure, f"{slug}.stl")
-    tenon = figures[0][1]
-    print(
-        f"         tenon {tenon.tenon_width}x{tenon.tenon_depth}x{tenon.tenon_height} mm "
-        f"into the {pedestal_spec.socket_width}x{pedestal_spec.socket_depth}"
-        f"x{pedestal_spec.socket_recess} mm socket; "
-        f"award height {pedestal_spec.height + tenon.top_z - tenon.tenon_height:.0f} mm"
-    )
+        # Report per figure: the four versions no longer share one height, and
+        # printing the first one's number for all of them would misreport it.
+        print(
+            f"         tenon {figure_spec.tenon_width}x{figure_spec.tenon_depth}"
+            f"x{figure_spec.tenon_height} mm into the {pedestal_spec.socket_width}x"
+            f"{pedestal_spec.socket_depth}x{pedestal_spec.socket_recess} mm socket; "
+            f"award height {pedestal_spec.height + figure_spec.top_z - figure_spec.tenon_height:.0f} mm"
+        )
 
     for category in CATEGORIES:
         print(f"category: {category.slug}")

@@ -100,21 +100,42 @@ is built the way a carver works:
    sloping top.
 3. **Add the digits that leave the mass**: the thumb and the little finger.
 
-The facet count is the point. Version 4 has **800 faces against version 3's
-1626** — half as many, twice as large.
-
 It also has the reference's notch: a wedge cut between the ring and little finger
 columns so the pinky stands clear of the fist instead of emerging from a ridge.
 
+#### Revision: the first attempt read as a box, and here is why
+
+The first build of this version passed every automatic check and still looked,
+in Yachar's words, like "a cube" next to the reference. The checks prove
+structural facts — four fingers exist, the pinky stands alone, the tenon fits —
+none of which is "does this read as an elegant hand," which no script here can
+judge. But the cube complaint pointed at something a script *can* catch: every
+section ring had almost the same width:depth ratio (1.35–1.40), and the body was
+only **1.18×** taller than it was wide. Uniformly scaling one rectangle seven
+times is, measurably, a box, independent of the pinky, the grooves, or anything
+else about the pose.
+
+Fixed two ways, both visible in `ROUGH_RINGS`: the height:width ratio goes from
+1.18 to **1.60**, and the width:depth ratio now varies per ring (1.52–1.75)
+instead of holding constant, so the hull is not one shape scaled uniformly. A
+thenar bump — one extra hull point on the thumb side — was also added so that
+side of the hand is not a flat plane. The little finger grew slightly (31 mm
+against 29.5 mm) to stand proportionally taller against the now slimmer hand, in
+line with the reference. Net effect: **26.9 cm³ against the previous 43.2**, and
+an award height of 105 mm instead of 100 — 5 mm taller because the pinky is
+longer, not because anything else changed shape. All checks below are for this
+revised geometry.
+
 | | V1 plain | V2 cubist | V3 tapered | V4 carved |
 |---|---|---|---|---|
-| Body | 40 × 30 × 38 | 40 × 30 × 38 | tapers 30 → 38 | rough-out hull, 29 → 38 |
-| Overall | 41.5 × 35 × 79.9 | 42.4 × 34 × 79.8 | 39.2 × 31.1 × 78.8 | 38.0 × 30.9 × 80.3 |
+| Body | 40 × 30 × 38 | 40 × 30 × 38 | tapers 30 → 38 | rough-out hull, 21 → 30, height:width 1.60 |
+| Overall | 41.5 × 35 × 79.9 | 42.4 × 34 × 79.8 | 39.2 × 31.1 × 78.8 | 30.0 × 23.3 × 84.7 |
 | Knuckle rows | 1 | 1 | **2** | **2** |
-| Pinky | 9 mm, straight | 8.6 mm, 2 offset | 8 mm, flexed 8/−5/−6 | 8.2 mm, flexed 7/−4/−4 |
-| Pinky axis bow | 0.00 mm | 0.17 mm | 0.51 mm | 0.38 mm |
-| Faces | 116 | 868 | 1626 | **800** |
-| Model volume | 61.3 cm³ | 62.5 cm³ | 44.4 cm³ | **43.2 cm³** |
+| Pinky | 9 mm, straight | 8.6 mm, 2 offset | 8 mm, flexed 8/−5/−6 | 7.3 mm, flexed 7/−4/−4 |
+| Pinky axis bow | 0.00 mm | 0.17 mm | 0.51 mm | 0.36 mm |
+| Faces | 116 | 868 | 1626 | **758** |
+| Model volume | 61.3 cm³ | 62.5 cm³ | 44.4 cm³ | **26.9 cm³** |
+| Award height | 100 mm | 100 mm | 99 mm | 105 mm |
 
 ### Making the raised finger read as the pinky
 
@@ -198,7 +219,7 @@ Measured model volumes and estimated filament ranges:
 | Figure v1 (chunky solid) | 61.3 cm³ | ~21 cm³ — the slicer infills it |
 | Figure v2 (chunky solid) | 62.5 cm³ | ~21 cm³ |
 | Figure v3 (tapered solid) | 44.4 cm³ | ~17 cm³ |
-| Figure v4 (carved solid) | 43.2 cm³ | ~16 cm³ |
+| Figure v4 (carved solid) | 26.9 cm³ | ~12 cm³ |
 | Plaque | 3.6 cm³ | ~3.6 cm³ |
 
 So **why keep the hollow?** Because it is not about saving filament. It buys an
