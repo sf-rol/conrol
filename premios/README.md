@@ -1,8 +1,12 @@
 # ConRol awards — parametric 3D generator 🤖
 
-Generates the complete ConRol 2026 award from code: **a closed fist with the
-pinky raised, four candidate versions of it, a hollowed pedestal, and the
-category text on a plaque.**
+Generates the complete ConRol 2026 award from code: **the reference sculpture,
+four earlier candidate figures for comparison, and the category text on a
+plaque sized to the sculpture's own base.**
+
+The sculpture — `ref/mano-referencia.stl`, a hand with the little finger raised
+on a rectangular base — is now the basis of the award. `prepare_reference.py`
+strips the plaque that was modelled into its base and rescales it to 100 mm.
 
 | Output | What it is | Print |
 |---|---|---|
@@ -10,8 +14,9 @@ category text on a plaque.**
 | `out/figura-punyo-cubista.stl` | **V2.** Faceted, cubist fist. | one per award |
 | `out/figura-punyo-elegante.stl` | **V3.** Tapered, articulated fist built to the brief. | one per award |
 | `out/figura-punyo-tallado.stl` | **V4.** Carved faceted fist, after the marble reference. | one per award |
-| `out/peana-lisa.stl` | Plain hollowed pedestal. Same pedestal for every award. | once per award |
-| `out/placa-<slug>.stl` | Engraved plaque, one per category. | one per award |
+| `out/figura-referencia-100mm.stl` | **The award figure.** The reference sculpture, plaque stripped, at 100 mm. | one per award |
+| `out/placa-<slug>.stl` | Engraved plaque, 44 × 11 × 2.2 mm, one per category. | one per award |
+| `out/peana-lisa.stl` | Pedestal, kept for the alternative route. Not needed with the sculpture. | — |
 | `out/previews/figura-comparativa.png` | All four figures, side by side, same scale | — |
 
 Print **one** figure version, not all four: they share the socket, so any of them
@@ -155,9 +160,10 @@ Styling is not allowed to cost this, so it is carried deliberately:
 
 | Part | Size (mm) | Notes |
 |---|---|---|
-| Pedestal | 72 × 34 × 26 | Mortise 30.5 × 22.5 × 6 mm on top, hollowed from below |
-| Plaque | 68 × 2.5 × 22 | Fits the pedestal front face with 2 mm to spare |
-| Type | Liberation Sans Narrow Bold | Title cap 4.2 mm, subtitle 3.0 mm, body 2.8 mm |
+| Reference sculpture | 46.1 × 33.1 × 100 | Its own base is 46.1 × 27.1 × 11.1 mm |
+| Plaque | 44 × 2.2 × 11 | The base's front face is 46.1 × 11.1 mm, so the plate all but fills it |
+| Type | Liberation Sans Narrow Bold | Event 2.35 mm, name 3.0 mm, phrase 2.35 mm |
+| Pedestal (alternative) | 72 × 34 × 26 | Mortise 30.5 × 22.5 × 6 mm, hollowed from below |
 
 The figure does **not** sit in a thin slot: a three-dimensional fist needs a
 footprint it can stand in. The mortise (socket) gives the joint shear strength
@@ -166,19 +172,65 @@ so the tenon actually drops in on a real printer. Glue it once it is seated.
 
 ### Categories
 
-| Slug | Title | Subtitle | Body |
+Every plaque carries three lines in a fixed order: the event, then the award
+name as the hero, then a few words that land the joke.
+
+| Slug | Line 1 | Line 2 (name) | Line 3 (phrase) |
 |---|---|---|---|
-| `aportacio` | ConRol 2026 | POR APORTAR UNA ACTIVIDAD | PORQUE SIN TI / ESTO NO VUELVE A LATIR |
-| `dramaqeen` | DRAMAQEEN | ConRol 2026 | POR BUSCAR EL DRAMA / INFINITO E INTENSO |
-| `abuelo-cebolleta` | ABUELO/A CEBOLLETA | ConRol 2026 | PORQUE EN MIS TIEMPOS / ESTO MOLABA MÁS |
-| `intensito` | INTENSITO | ConRol 2026 | POR TOMÁRSELO TODO / MUY EN SERIO |
-| `neurotipico` | NEUROTÍPICO | ConRol 2026 | POR SER EL NORMALITO / DE LA MESA |
-| `molusco-bivalvo` | MOLUSCO BIVALVO | ConRol 2026 | POR SENTIRLO TODO / POR DENTRO |
-| `troll-cavernas` | TROLL DE LAS CAVERNAS | ConRol 2026 | POR RONCAR COMO UN / MONSTRUO ÉPICO |
+| `aportacio` | ConRol 2026 | APORTACION | ESTO NO VUELVE A LATIR |
+| `refinament` | ConRol 2026 | REFINAMIENTO | DEL GESTO |
+| `dramaqeen` | ConRol 2026 | DRAMAQEEN | POR EL DRAMA INFINITO |
+| `abuelo-cebolleta` | ConRol 2026 | ABUELO/A CEBOLLETA | EN MIS TIEMPOS... |
+| `intensito` | ConRol 2026 | INTENSITO | MUY EN SERIO |
+| `neurotipico` | ConRol 2026 | NEUROTIPICO | EL NORMALITO |
+| `molusco-bivalvo` | ConRol 2026 | MOLUSCO BIVALVO | SINTIENDOLO TODO |
+| `troll-cavernas` | ConRol 2026 | TROLL DE LAS CAVERNAS | RONCAR EPICO |
+
+`refinament` reconstructs the reference plate's title — *EL REFINAMIENTO DEL
+GESTO* — across the name and phrase lines.
 
 The `aportacio` award is given once per contributor, so its plaque is reprinted
-as needed. Body lines are pre-wrapped on purpose: the plate does not word-wrap,
-so a line that is too long gets scaled down instead of broken.
+as needed. Names are short on purpose: the plate does not word-wrap, so a line
+that is too long gets scaled down rather than broken, and scaling down is what
+pushes text under the legibility floor.
+
+### The plate is tight, and here is exactly how tight
+
+The sculpture's base gives the plate a face of **46.1 x 11.1 mm**, so the 44 x 11
+plate all but fills it. Three lines fit, but only just, and two things had to be
+got right for them to.
+
+**Legibility is a stroke width question, not a taste question.** The font's
+stroke is 0.172 of the capital height, measured from the 'I' at runtime, so the
+floor is computed from the nozzle: a stroke narrower than one nozzle prints as a
+broken thread.
+
+| Nozzle | Minimum stroke | Minimum capital height |
+|---|---|---|
+| 0.25 mm | 0.29 mm | 1.42 mm |
+| **0.4 mm** | 0.46 mm | **2.33 mm** |
+| 0.6 mm | 0.69 mm | 3.40 mm |
+
+The two small lines sit at 2.35 mm, which is 1.01 nozzle widths of stroke at
+0.4 mm. **So this plaque needs a 0.4 mm nozzle or finer**, and it is the reason
+the earlier 68 x 22 plate existed at all.
+
+**Lines are stacked by baseline, not by ink bounding box.** A bounding box stack
+lets a descender inflate the block: the tail of the Q in DRAMAQEEN pushed every
+line below it down and left a 0.7 mm margin, below the 0.8 mm floor. Typesetting
+stacks by baseline and lets descenders hang into the leading, which brings that
+case back to 0.9 mm and leaves every other category at 1.1-1.4 mm. The floor
+itself is now two nozzle widths rather than an invented 1.5 mm.
+
+### The alternative: engrave the face instead of gluing a plate
+
+Since the plate has to be ~11 mm tall on an 11.1 mm face, it is visually
+indistinguishable from engraving the base directly, and the reference sculpture
+does exactly that. Set `ROUTE = "engraved"` to cut the text into the sculpture's
+own base instead: no glue, no seam, no extra part to come off. It is not wired up
+to the reference model yet — that means applying the engraving to
+`figura-referencia-100mm.stl` rather than to the pedestal — but the layout and
+the verification already support it.
 
 ## Usage
 

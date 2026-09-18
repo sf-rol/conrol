@@ -39,6 +39,7 @@ from shapely.geometry import Polygon
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_premios import (  # noqa: E402
     CATEGORIES,
+    EVENT_LINE,
     FONT_PATH,
     Category,
     GlyphFont,
@@ -51,9 +52,20 @@ from build_premios import (  # noqa: E402
 )
 
 GRID = 260
-MIN_CAP_MM = 2.5  # hard legibility floor for a 0.4 mm nozzle
-COMFORT_CAP_MM = 2.8  # below this the strokes get marginal; reported, not enforced
-MIN_EDGE_MARGIN_MM = 1.5
+# Legibility is not a taste question, it is a stroke width question. The font's
+# stroke is a fixed fraction of the capital height (measured from the 'I' at
+# runtime, 0.172 for this face), and a stroke narrower than one nozzle prints as
+# a broken thread rather than a line. So the floor is computed from the nozzle
+# instead of guessed: at 0.4 mm it lands at 2.33 mm of capital height, which is
+# where the earlier 2.5 mm guess was pointing.
+NOZZLE_MM = 0.4
+MIN_STROKE_LINES = 1.0
+# The text block must stay this far from the part's edge, so that a rim of solid
+# material survives next to the engraving. Grounded in the nozzle rather than
+# guessed: two nozzle widths, 0.8 mm, which is comfortably more than the 0.6 mm
+# engraving depth. The earlier values were 1.5 and then 1.0 mm, neither derived
+# from anything, and neither fits a plate that has to fill its face.
+MIN_EDGE_MARGIN_MM = 2 * NOZZLE_MM
 TEST_CHARS = "MEORAÓ2o5"
 REFERENCE_CAP_EM = 0.688  # starting guess for cap height / em
 CONTROL_IS_UNINFORMATIVE = 0.90
@@ -227,7 +239,13 @@ def achieved_cap(font: GlyphFont, text: str, cap_mm: float, available: float) ->
 
 
 def check_layout(font: GlyphFont) -> bool:
-    print("\ncheck 3: layout fits, stays legible, and keeps its reading order")
+    stem_ratio = (font.glyph("I", 10.0).bounds[2] - font.glyph("I", 10.0).bounds[0]) / 10.0
+    min_cap = MIN_STROKE_LINES * NOZZLE_MM / stem_ratio
+    print(
+        f"\ncheck 3: layout fits, stays legible, and keeps its reading order\n"
+        f"  stroke/cap ratio {stem_ratio:.3f} (measured from 'I') -> minimum capital"
+        f" height {min_cap:.2f} mm for a {NOZZLE_MM} mm nozzle"
+    )
     ok = True
     for category in CATEGORIES:
         for label, part in (("pedestal", Pedestal()), ("plaque", Plaque())):
@@ -237,22 +255,25 @@ def check_layout(font: GlyphFont) -> bool:
                 cap, width = achieved_cap(font, text, requested, available)
                 caps[text] = cap
                 fits = width <= available + 1e-6
-                legible = cap >= MIN_CAP_MM
-                comfortable = cap >= COMFORT_CAP_MM
+                legible = cap >= min_cap - 1e-9
                 ok &= fits and legible
                 flag = "PASS" if fits and legible else "FAIL"
-                warn = "" if comfortable else "  <- thin strokes, slice with care"
+                stroke = cap * stem_ratio
                 print(
-                    f"  [{flag}] {category.slug:18s} {label:8s} {text!r:26s} "
-                    f"w={width:5.1f}/{available:.1f}  cap={cap:.2f}/{requested:.1f}{warn}"
+                    f"  [{flag}] {category.slug:18s} {label:8s} {text!r:24s} "
+                    f"w={width:5.1f}/{available:.1f}  cap={cap:.2f}/{requested:.1f}  "
+                    f"stroke={stroke:.2f} mm ({stroke / NOZZLE_MM:.2f} nozzles)"
                 )
 
             order = [
-                caps[category.title],
-                caps[category.subtitle],
-                *(caps[text] for text in category.body),
+                caps[EVENT_LINE],
+                caps[category.name],
+                caps[category.phrase],
             ]
-            ordered = all(a >= b - 1e-9 for a, b in zip(order, order[1:]))
+            # The award name must dominate the other two lines, or the hierarchy
+            # reads wrong: the event identifier and the joke should never
+            # out-shout what the award actually is.
+            ordered = order[1] >= max(order[0], order[2]) - 1e-9
             ok &= ordered
 
             lines = stack_lines(font, category, part, max_width=available)

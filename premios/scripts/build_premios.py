@@ -57,22 +57,56 @@ SIMPLIFY_MM = 0.015
 ROUTE = "plaque"
 
 
+# The top line of every plaque. Fixed, because its only job is to say which
+# event this is.
+EVENT_LINE = "ConRol 2026"
+
+
 @dataclass(frozen=True)
 class TextLayout:
-    """How the engraved lines are sized and stacked, in millimetres."""
+    """Three lines, in a fixed order: event, award name, short phrase.
 
-    title_cap_mm: float = 4.2
-    subtitle_cap_mm: float = 3.0
-    body_cap_mm: float = 2.8
-    line_gap_mm: float = 1.2
-    side_margin_mm: float = 3.5
-    engrave_depth: float = 0.7
+    An identifier on top, the award name as the hero, and the joke underneath.
+    Only the name is sized to dominate; the other two are deliberately small so
+    that three lines fit on a plate barely 10 mm tall.
+    """
+
+    event_cap_mm: float
+    name_cap_mm: float
+    phrase_cap_mm: float
+    line_gap_mm: float
+    side_margin_mm: float
+    engrave_depth: float
 
     def caps(self, category: Category) -> list[tuple[str, float]]:
-        """Ordered (text, capital height) pairs, biggest line first."""
-        lines = [(category.title, self.title_cap_mm), (category.subtitle, self.subtitle_cap_mm)]
-        lines.extend((text, self.body_cap_mm) for text in category.body)
-        return lines
+        """Ordered (text, capital height) pairs, top line first."""
+        return [
+            (EVENT_LINE, self.event_cap_mm),
+            (category.name, self.name_cap_mm),
+            (category.phrase, self.phrase_cap_mm),
+        ]
+
+
+# Sized for the plaque, which is the tight one: the reference sculpture's base
+# gives it a face of 46.1 x 11.1 mm and nothing more.
+PLAQUE_LAYOUT = TextLayout(
+    event_cap_mm=2.35,
+    name_cap_mm=3.0,
+    phrase_cap_mm=2.35,
+    line_gap_mm=0.35,
+    side_margin_mm=1.2,
+    engrave_depth=0.6,
+)
+
+# The pedestal's face is 68 x 22 mm, so the same three lines can breathe.
+PEDESTAL_LAYOUT = TextLayout(
+    event_cap_mm=3.2,
+    name_cap_mm=4.6,
+    phrase_cap_mm=3.2,
+    line_gap_mm=1.0,
+    side_margin_mm=3.5,
+    engrave_depth=0.7,
+)
 
 
 @dataclass(frozen=True)
@@ -92,7 +126,7 @@ class Pedestal:
     socket_width: float = 30.5
     socket_depth: float = 22.5
     socket_recess: float = 6.0
-    layout: TextLayout = field(default_factory=TextLayout)
+    layout: TextLayout = field(default_factory=lambda: PEDESTAL_LAYOUT)
     hollow: bool = True
     hollow_wall_mm: float = 1.8
     hollow_roof_rise_mm: float = 3.0
@@ -131,12 +165,18 @@ class Pedestal:
 
 @dataclass(frozen=True)
 class Plaque:
-    """Standalone flat plaque, in the XZ plane, thickness along Y."""
+    """Standalone plaque, in the XZ plane, thickness along Y.
 
-    length: float = 68.0
-    height: float = 22.0
-    thickness: float = 2.5
-    layout: TextLayout = field(default_factory=TextLayout)
+    Deliberately sized to the reference sculpture's base, whose front face is
+    46.1 x 11.1 mm. It is nearly as wide as that face because three legible
+    lines need the room; the reference's own plate was only 20.3 x 5.0 mm, and
+    no readable text fits that at a 100 mm award.
+    """
+
+    length: float = 44.0
+    height: float = 11.0
+    thickness: float = 2.2
+    layout: TextLayout = field(default_factory=lambda: PLAQUE_LAYOUT)
 
     @property
     def text_area_half_width(self) -> float:
@@ -153,67 +193,31 @@ class Plaque:
 
 @dataclass(frozen=True)
 class Category:
-    """One award. `body` lines are already wrapped: the plate does not word-wrap."""
+    """One award: what it is called, and the few words that land the joke.
+
+    Both are already short. The plate does not word-wrap, so a line that is too
+    long gets scaled down rather than broken, and scaling down is what pushes
+    text below the legibility floor.
+    """
 
     slug: str
-    title: str
-    subtitle: str
-    body: tuple[str, ...] = ()
+    name: str
+    phrase: str
 
 
 CATEGORIES: list[Category] = [
-    Category(
-        slug="aportacio",
-        title="ConRol 2026",
-        subtitle="POR APORTAR UNA ACTIVIDAD",
-        body=("PORQUE SIN TI", "ESTO NO VUELVE A LATIR"),
-    ),
-    # Straight from the reference sculpture's base plaque, which reads
-    # "EL REFINAMIENTO DEL GESTO" over "(Marmol de Carrara) - 2024". The same
-    # affected museum label, but honest about the material. Delete this entry if
-    # you would rather not have an eighth award.
-    Category(
-        slug="refinament",
-        title="EL REFINAMIENTO DEL GESTO",
-        subtitle="(PLA) \u00b7 2026",
-    ),
-    Category(
-        slug="dramaqeen",
-        title="DRAMAQEEN",
-        subtitle="ConRol 2026",
-        body=("POR BUSCAR EL DRAMA", "INFINITO E INTENSO"),
-    ),
-    Category(
-        slug="abuelo-cebolleta",
-        title="ABUELO/A CEBOLLETA",
-        subtitle="ConRol 2026",
-        body=("PORQUE EN MIS TIEMPOS", "ESTO MOLABA MÁS"),
-    ),
-    Category(
-        slug="intensito",
-        title="INTENSITO",
-        subtitle="ConRol 2026",
-        body=("POR TOMÁRSELO TODO", "MUY EN SERIO"),
-    ),
-    Category(
-        slug="neurotipico",
-        title="NEUROTÍPICO",
-        subtitle="ConRol 2026",
-        body=("POR SER EL NORMALITO", "DE LA MESA"),
-    ),
-    Category(
-        slug="molusco-bivalvo",
-        title="MOLUSCO BIVALVO",
-        subtitle="ConRol 2026",
-        body=("POR SENTIRLO TODO", "POR DENTRO"),
-    ),
-    Category(
-        slug="troll-cavernas",
-        title="TROLL DE LAS CAVERNAS",
-        subtitle="ConRol 2026",
-        body=("POR RONCAR COMO UN", "MONSTRUO ÉPICO"),
-    ),
+    Category(slug="aportacio", name="APORTACION", phrase="ESTO NO VUELVE A LATIR"),
+    # The reference plate reads "EL REFINAMIENTO DEL GESTO". Split across the
+    # name and the phrase, the three lines reconstruct it exactly.
+    Category(slug="refinament", name="REFINAMIENTO", phrase="DEL GESTO"),
+    Category(slug="dramaqeen", name="DRAMAQEEN", phrase="POR EL DRAMA INFINITO"),
+    Category(slug="abuelo-cebolleta", name="ABUELO/A CEBOLLETA", phrase="EN MIS TIEMPOS..."),
+    Category(slug="intensito", name="INTENSITO", phrase="MUY EN SERIO"),
+    Category(slug="neurotipico", name="NEUROTIPICO", phrase="EL NORMALITO"),
+    Category(slug="molusco-bivalvo", name="MOLUSCO BIVALVO", phrase="SINTIENDOLO TODO"),
+    Category(slug="troll-cavernas", name="TROLL DE LAS CAVERNAS", phrase="RONCAR EPICO"),
 ]
+
 
 
 class GlyphFont:
@@ -262,7 +266,19 @@ class GlyphFont:
         return _paths_to_geometry(placed, self.scale_for_cap(cap_mm))
 
     def line(self, text: str, cap_mm: float, max_width: float | None = None) -> shapely.Geometry:
-        """Build one text line as an even-odd filled geometry, centred on (0, 0)."""
+        """One text line as an even-odd filled geometry, centred on (0, 0)."""
+        return _centre_on_origin(self.line_at_baseline(text, cap_mm, max_width))
+
+    def line_at_baseline(
+        self, text: str, cap_mm: float, max_width: float | None = None
+    ) -> shapely.Geometry:
+        """One text line with the font baseline still on Y=0.
+
+        Kept baseline-referenced because stacking lines by their ink bounding box
+        is wrong: a descender - the tail of a Q, a g, a p - would then push every
+        line below it downwards. Typesetting stacks by baseline and lets
+        descenders hang into the leading, and that is what `stack_lines` needs.
+        """
         scale = self.scale_for_cap(cap_mm)
         if max_width is not None:
             width = sum(self._advance(c) for c in text) * scale
@@ -277,7 +293,17 @@ class GlyphFont:
             placed.extend((path, pen_x) for path in self._subpaths(char))
             pen_x += self._advance(char)
 
-        return _centre_on_origin(_paths_to_geometry(placed, scale))
+        return _paths_to_geometry(placed, scale)
+
+    def line_metrics(
+        self, text: str, cap_mm: float, max_width: float | None = None
+    ) -> tuple[shapely.Geometry, float, float]:
+        """Centred geometry plus how far its ink rises and falls from the baseline."""
+        geometry = self.line_at_baseline(text, cap_mm, max_width)
+        if geometry.is_empty:
+            return geometry, 0.0, 0.0
+        _, min_y, _, max_y = geometry.bounds
+        return _centre_on_origin(geometry), max_y, -min_y
 
 
 def _paths_to_geometry(
@@ -337,25 +363,35 @@ def stack_lines(
     Lines are stacked by their real ink bounding box, not by their capital
     height, so accents and descenders cannot collide with the line above.
     """
-    built: list[tuple[str, shapely.Geometry, float]] = []
+    built: list[tuple[str, shapely.Geometry, float, float]] = []
     for text, cap_mm in part.layout.caps(category):
         if not text.strip():
             continue  # a plain part has no inscription at all
-        geometry = font.line(text, cap_mm, max_width=max_width)
+        geometry, ascender, descender = font.line_metrics(text, cap_mm, max_width=max_width)
         if geometry.is_empty:
             continue
-        built.append((text, geometry, geometry.bounds[3] - geometry.bounds[1]))
+        built.append((text, geometry, ascender, descender))
     if not built:
         return []
 
     gap = part.layout.line_gap_mm
-    total = sum(height for _, _, height in built) + gap * (len(built) - 1)
-    cursor = part.text_block_center_z + total / 2
+    # Baseline-to-baseline spacing. It is normally the next line's ascender plus
+    # the gap, but it widens when the line above has a descender that would
+    # otherwise run into it. That keeps the ink from colliding without letting a
+    # descender inflate the height of the whole block.
+    spacings = [
+        ascender + max(gap, descender_above + 0.1)
+        for (_, _, _, descender_above), (_, _, ascender, _) in zip(built, built[1:])
+    ]
+    total = built[0][2] + sum(spacings) + built[-1][3]
+    baseline = part.text_block_center_z + total / 2 - built[0][2]
 
     placed: list[PlacedLine] = []
-    for text, geometry, height in built:
-        placed.append(PlacedLine(text, geometry, cursor - height / 2, height))
-        cursor -= height + gap
+    for index, (text, geometry, ascender, descender) in enumerate(built):
+        if index:
+            baseline -= spacings[index - 1]
+        height = ascender + descender
+        placed.append(PlacedLine(text, geometry, baseline + (ascender - descender) / 2, height))
     return placed
 
 
@@ -552,7 +588,7 @@ def main() -> int:
     if ROUTE == "plaque":
         # Every award shares one pedestal, so it is built and verified once.
         print("pedestal (plain, shared by every award)")
-        plain = build_pedestal(font, Category(slug="lisa", title="", subtitle=""), pedestal_spec)
+        plain = build_pedestal(font, Category(slug="lisa", name="", phrase=""), pedestal_spec)
         validate(plain, "peana-lisa.stl")
         plain.export(OUT_DIR / "peana-lisa.stl")
         report_budget(plain, "peana-lisa.stl")
