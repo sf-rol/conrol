@@ -223,12 +223,9 @@ class Category:
 
 CATEGORIES: list[Category] = [
     Category(slug="aportacio", name="SANCHO PANZA", phrase="SIN TI, NO HAY CONROL"),
-    Category(slug="refinament", name="REFINAMIENTO", phrase="DEL GESTO"),
-    Category(slug="dramaqeen", name="DRAMAQEEN", phrase="LLORA SIN FRENO"),
     Category(slug="abuelo-cebolleta", name="ABUELO/A CEBOLLETA", phrase="ANTES, TODO ERA MEJOR"),
     Category(slug="intensito", name="INTENSITO", phrase="EVANGELIZA CON PASIÓN"),
     Category(slug="neurotipico", name="NEUROTÍPICO", phrase="ÚNICO EN EL ROL"),
-    Category(slug="molusco-bivalvo", name="MOLUSCO BIVALVO", phrase="LO VIVE POR DENTRO"),
     Category(slug="troll-cavernas", name="TROLL CAVERNAS", phrase="TERROR DE LA NOCHE"),
 ]
 
@@ -756,7 +753,7 @@ def main() -> int:
             engraved.export(OUT_DIR / f"premio-{category.slug}.stl")
             report_budget(engraved, f"premio-{category.slug}.stl")
             engraved_parts.append((f"premio-{category.slug}", engraved))
-        combined = OUT_DIR / "premios-8.3mf"
+        combined = OUT_DIR / f"premios-{len(CATEGORIES)}.3mf"
         write_combined_3mf(engraved_parts, combined)
         print(
             f"         {combined.name}: {combined.stat().st_size / 1e6:.1f} MB, "

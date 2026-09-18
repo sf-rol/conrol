@@ -5,8 +5,8 @@ rectangular base — with the category text **engraved into its own base**. No
 separate plate, so nothing to glue and nothing that can come off.
 
 ```
-out/premio-<slug>.stl     × 8   one engraved sculpture per category
-out/premios-8.3mf          1    the same eight, named and laid out on one plate
+out/premio-<slug>.stl     × 5   one engraved sculpture per category
+out/premios-5.3mf          1    the same five, named and laid out on one plate
 out/figura-referencia-100mm.stl    the blank sculpture, text-free
 out/figura-punyo*.stl      4    earlier candidate figures, kept for comparison
 out/peana-lisa.stl             the old pedestal, unused with the sculpture
@@ -49,16 +49,10 @@ lands the joke.
 | Slug | Name | Phrase |
 |---|---|---|
 | `aportacio` | SANCHO PANZA | SIN TI, NO HAY CONROL |
-| `refinament` | REFINAMIENTO | DEL GESTO |
-| `dramaqeen` | DRAMAQEEN | LLORA SIN FRENO |
 | `abuelo-cebolleta` | ABUELO/A CEBOLLETA | ANTES, TODO ERA MEJOR |
 | `intensito` | INTENSITO | EVANGELIZA CON PASIÓN |
 | `neurotipico` | NEUROTÍPICO | ÚNICO EN EL ROL |
-| `molusco-bivalvo` | MOLUSCO BIVALVO | LO VIVE POR DENTRO |
 | `troll-cavernas` | TROLL CAVERNAS | TERROR DE LA NOCHE |
-
-`refinament` reconstructs the reference plate's title — *EL REFINAMIENTO DEL
-GESTO* — across the name and phrase lines.
 
 ### Two traps the layout had to survive
 
@@ -70,8 +64,9 @@ watch commas.
 
 **Capitals are a maximum, not a promise.** Stacking shrinks them, per category,
 until the block clears a 1.0 mm margin at both edges. So `intensito` (one accent)
-renders at 99.6 % and `neurotipico` (two accents) at 91 %, while the rest keep
-full size. The verification reports the size actually used and marks the shrunk
+renders at 99.6 % and `neurotipico` (two accents, and it is deliberate sarcasm —
+calling the normal one "unique" is the joke) at 91 %, while the rest keep full
+size. The verification reports the size actually used and marks the shrunk
 ones.
 
 ### Legibility, derived rather than guessed
@@ -96,21 +91,21 @@ different file**. That is unavoidable, and it is not a problem:
 
 | | Engraved | Glued plate |
 |---|---|---|
-| Sculptures to print | 8 | 8 |
+| Sculptures to print | 5 | 5 |
 | Material for sculptures | same | same |
-| Extra parts | **0** | 8 |
-| Gluing operations | **0** | 8 |
+| Extra parts | **0** | 5 |
+| Gluing operations | **0** | 5 |
 | Can come off | **no** | yes |
 
-Engraving costs the same material and time and removes eight parts and eight
-gluing operations. What it does cost is the slicer's "multiply ×8", because every
+Engraving costs the same material and time and removes five parts and five
+gluing operations. What it does cost is the slicer's "multiply", because every
 object is unique — which is what `premios-8.3mf` is for.
 
-### Why 3MF rather than an STL with eight bodies
+### Why 3MF rather than an STL with five bodies
 
-`out/premios-8.3mf` (6.4 MB) holds all eight awards as **named objects** with
+`out/premios-5.3mf` (4.0 MB) holds all five awards as **named objects** with
 millimetre units, already laid out on one plate — one slice, one print run. In STL
-the same eight would be ~360 000 triangles in a blob, with no way to tell which is
+the same five would be ~225 000 triangles in a blob, with no way to tell which is
 which.
 
 ## Usage
@@ -147,11 +142,11 @@ Measured model volumes, per award:
 | Engraved sculpture | 47.9 cm³ | ~19 cm³ |
 | Base alone | ~17 cm³ | — |
 
-For a full set of eight: **~383 cm³ of model, roughly 155 g of PLA**, plus print
+For a full set of five: **~239 cm³ of model, roughly 97 g of PLA**, plus print
 time. Only the volumes are measured; filament and time are estimates from stated
 assumptions and depend on the machine. The figures dominate, and at 100 mm tall
 each one is a long print — ask your friend to slice one before committing to
-eight.
+five.
 
 ## What the verification actually proves
 
