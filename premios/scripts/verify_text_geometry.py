@@ -43,12 +43,15 @@ from build_premios import (  # noqa: E402
     FONT_PATH,
     Category,
     GlyphFont,
+    PLAQUE_LAYOUT,
     Pedestal,
     Plaque,
+    ReferenceBase,
     build_pedestal,
     build_plaque,
     pedestal_cavity,
     stack_lines,
+    vertical_fit_scale,
 )
 
 GRID = 260
@@ -65,7 +68,7 @@ MIN_STROKE_LINES = 1.0
 # guessed: two nozzle widths, 0.8 mm, which is comfortably more than the 0.6 mm
 # engraving depth. The earlier values were 1.5 and then 1.0 mm, neither derived
 # from anything, and neither fits a plate that has to fill its face.
-MIN_EDGE_MARGIN_MM = 2 * NOZZLE_MM
+MIN_EDGE_MARGIN_MM = PLAQUE_LAYOUT.min_margin_mm
 TEST_CHARS = "MEORAÓ2o5"
 REFERENCE_CAP_EM = 0.688  # starting guess for cap height / em
 CONTROL_IS_UNINFORMATIVE = 0.90
@@ -248,11 +251,14 @@ def check_layout(font: GlyphFont) -> bool:
     )
     ok = True
     for category in CATEGORIES:
-        for label, part in (("pedestal", Pedestal()), ("plaque", Plaque())):
+        for label, part in (("pedestal", Pedestal()), ("reference", ReferenceBase()), ("plaque", Plaque())):
             available = 2 * part.text_area_half_width
+            # Report the size actually used: stacking shrinks the capitals for
+            # the categories that would otherwise overflow.
+            fit = vertical_fit_scale(font, category, part, available)
             caps: dict[str, float] = {}
             for text, requested in part.layout.caps(category):
-                cap, width = achieved_cap(font, text, requested, available)
+                cap, width = achieved_cap(font, text, requested * fit, available)
                 caps[text] = cap
                 fits = width <= available + 1e-6
                 legible = cap >= min_cap - 1e-9
@@ -263,6 +269,7 @@ def check_layout(font: GlyphFont) -> bool:
                     f"  [{flag}] {category.slug:18s} {label:8s} {text!r:24s} "
                     f"w={width:5.1f}/{available:.1f}  cap={cap:.2f}/{requested:.1f}  "
                     f"stroke={stroke:.2f} mm ({stroke / NOZZLE_MM:.2f} nozzles)"
+                    + ("  shrunk" if fit < 0.999 else "")
                 )
 
             order = [
@@ -281,7 +288,9 @@ def check_layout(font: GlyphFont) -> bool:
             top = max(line.z_span[1] for line in lines)
             bottom = min(line.z_span[0] for line in lines)
             top_margin, bottom_margin = z_high - top, bottom - z_low
-            spaced = min(top_margin, bottom_margin) >= MIN_EDGE_MARGIN_MM
+            # Tolerance: stacking targets the margin exactly, so the result can
+            # land 1e-8 short of it in floating point.
+            spaced = min(top_margin, bottom_margin) >= MIN_EDGE_MARGIN_MM - 1e-6
             ok &= spaced
             print(
                 f"  [{'PASS' if ordered and spaced else 'FAIL'}] {category.slug:18s} {label:8s} "

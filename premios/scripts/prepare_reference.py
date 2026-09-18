@@ -33,6 +33,16 @@ SOURCE = REPO_ROOT / "ref" / "mano-referencia.stl"
 OUT_DIR = REPO_ROOT / "out"
 
 TARGET_HEIGHT_MM = 100.0
+# The base is enlarged so the front face can carry three legible lines with
+# punctuation and accents. Measured limits said the current face (46.1 x 11.1 mm)
+# was at 97% of its ceiling; 49.2 x 12.7 mm moves the capital heights from
+# 2.35/3.00/2.35 to 2.80/3.40/2.80 and the stroke from 1.01 to 1.20 nozzle
+# widths, for about 7% more material. The depth is left alone on purpose, which
+# is where the 7% comes from. The hand is scaled down by the same amount the base
+# grows, so the award still stands exactly 100 mm.
+TARGET_FACE_WIDTH_MM = 49.2
+TARGET_FACE_HEIGHT_MM = 12.7
+
 # Anything standing this far proud of a vertical face is a modelled feature.
 PROUD_THRESHOLD_MM = 0.3
 # How far behind the face to cut, so the boolean is never coplanar.
@@ -145,6 +155,60 @@ def plaque_cutters(mesh: trimesh.Trimesh, z_low: float, z_high: float, scale: fl
     return cutters
 
 
+def enlarge_base(
+    mesh: trimesh.Trimesh, base_top: float, face_width_mm: float, face_height_mm: float
+) -> tuple[trimesh.Trimesh, dict[str, float]]:
+    """Widen and heighten the base without touching the sculpture on top of it.
+
+    The mesh is split at the top of the base into two *capped* solids, each is
+    scaled about the axis it should keep, and they are unioned again. Cutting
+    and moving geometry without capping would leave two open shells that no
+    slicer will accept; slice_mesh_plane caps them, so the union stays one
+    watertight body.
+
+    The depth is deliberately not scaled. That is what keeps the material cost at
+    roughly 7%: the extra volume is spent on the face that carries the text, not
+    on the rest of the block.
+    """
+    low, high = mesh.bounds
+    lower = trimesh.intersections.slice_mesh_plane(
+        mesh, [0.0, 0.0, -1.0], [0.0, 0.0, base_top], cap=True
+    )
+    upper = trimesh.intersections.slice_mesh_plane(
+        mesh, [0.0, 0.0, 1.0], [0.0, 0.0, base_top], cap=True
+    )
+
+    # Everything below is millimetres: this runs after the rescale to
+    # TARGET_HEIGHT_MM, so the targets are taken literally.
+    x_fact = face_width_mm / lower.extents[0]
+    z_fact = face_height_mm / lower.extents[2]
+    # The hand gives up exactly what the base gains, so the total stays put.
+    hand_room_mm = TARGET_HEIGHT_MM - face_height_mm
+    hand_fact = hand_room_mm / upper.extents[2]
+
+    centre_x = (low[0] + high[0]) / 2.0
+    centre_y = (low[1] + high[1]) / 2.0
+    base_bottom = low[2]
+    new_base_top = base_bottom + lower.extents[2] * z_fact
+
+    lower.apply_translation([-centre_x, -centre_y, -base_bottom])
+    lower.apply_scale([x_fact, 1.0, z_fact])
+    lower.apply_translation([centre_x, centre_y, base_bottom])
+
+    upper.apply_translation([-centre_x, -centre_y, -base_top])
+    upper.apply_scale(hand_fact)
+    upper.apply_translation([centre_x, centre_y, new_base_top])
+
+    joined = trimesh.boolean.union([lower, upper], engine="manifold")
+    return joined, {
+        "x_fact": x_fact,
+        "z_fact": z_fact,
+        "hand_fact": hand_fact,
+        "base_height_mm": lower.extents[2],
+        "face_width_mm": lower.extents[0],
+    }
+
+
 def main() -> int:
     if not SOURCE.exists():
         raise SystemExit(f"reference model not found: {SOURCE}")
@@ -173,7 +237,8 @@ def main() -> int:
     plane, proud, _, _ = face_relief(cleaned, 1, -1, low[2] + 0.001, top - 0.005, scale)
     print(f"  relief now {float(np.nanmax(proud)):.2f} mm (was 1.19 mm) -> flat to {float(np.nanmax(proud)):.2f} mm")
 
-    # Rescale and re-origin: bottom on Z=0, bounding box centred in X and Y.
+    # Rescale and re-origin first: bottom on Z=0, box centred in X and Y. The
+    # enlargement then works in millimetres, so its targets are taken literally.
     factor = TARGET_HEIGHT_MM / float(cleaned.extents[2])
     cleaned.apply_scale(factor)
     cleaned.apply_translation(
@@ -182,6 +247,17 @@ def main() -> int:
             -(cleaned.bounds[0][1] + cleaned.bounds[1][1]) / 2.0,
             -cleaned.bounds[0][2],
         ]
+    )
+
+    print("\nenlarging the base to carry the text:")
+    base_top_mm = (top - low[2]) * factor
+    cleaned, facts = enlarge_base(cleaned, base_top_mm, TARGET_FACE_WIDTH_MM, TARGET_FACE_HEIGHT_MM)
+    print(
+        f"  base x{facts['x_fact']:.4f}, height x{facts['z_fact']:.4f}, hand x{facts['hand_fact']:.4f}"
+    )
+    print(
+        f"  face now {facts['face_width_mm']:.1f} x {facts['base_height_mm']:.1f} mm, "
+        f"watertight={cleaned.is_watertight}, bodies={cleaned.body_count}"
     )
 
     target = OUT_DIR / "figura-referencia-100mm.stl"

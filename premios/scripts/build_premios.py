@@ -56,6 +56,17 @@ SIMPLIFY_MM = 0.015
 # Do not mix the two on the same pedestal: it would print the text twice.
 ROUTE = "plaque"
 
+# The text is cut into the sculpture's own base, which is the chosen route: no
+# separate plate, so nothing to glue and nothing that can come off. The reference
+# sculpture carries its text that way already, and a plate that has to fill the
+# face is visually the same thing minus the glue. Set to True to also emit the
+# standalone plate, for the glue route.
+EMIT_PLATES = False
+
+# Build plate layout for the combined 3MF, in millimetres.
+PLATE_COLUMNS = 4
+PLATE_PITCH_MM = 55.0
+
 
 # The top line of every plaque. Fixed, because its only job is to say which
 # event this is.
@@ -77,6 +88,11 @@ class TextLayout:
     line_gap_mm: float
     side_margin_mm: float
     engrave_depth: float
+    # The block of text must keep this much clear of both edges. Stacking shrinks
+    # the capitals until it does, per category, so that an accented line - which
+    # rises above the capital height - is the only one that gets smaller instead
+    # of dragging every plaque down with it.
+    min_margin_mm: float = 1.0
 
     def caps(self, category: Category) -> list[tuple[str, float]]:
         """Ordered (text, capital height) pairs, top line first."""
@@ -90,9 +106,9 @@ class TextLayout:
 # Sized for the plaque, which is the tight one: the reference sculpture's base
 # gives it a face of 46.1 x 11.1 mm and nothing more.
 PLAQUE_LAYOUT = TextLayout(
-    event_cap_mm=2.35,
-    name_cap_mm=3.0,
-    phrase_cap_mm=2.35,
+    event_cap_mm=2.8,
+    name_cap_mm=3.4,
+    phrase_cap_mm=2.8,
     line_gap_mm=0.35,
     side_margin_mm=1.2,
     engrave_depth=0.6,
@@ -173,8 +189,8 @@ class Plaque:
     no readable text fits that at a 100 mm award.
     """
 
-    length: float = 44.0
-    height: float = 11.0
+    length: float = 49.0
+    height: float = 12.7
     thickness: float = 2.2
     layout: TextLayout = field(default_factory=lambda: PLAQUE_LAYOUT)
 
@@ -206,18 +222,42 @@ class Category:
 
 
 CATEGORIES: list[Category] = [
-    Category(slug="aportacio", name="APORTACION", phrase="ESTO NO VUELVE A LATIR"),
-    # The reference plate reads "EL REFINAMIENTO DEL GESTO". Split across the
-    # name and the phrase, the three lines reconstruct it exactly.
+    Category(slug="aportacio", name="SANCHO PANZA", phrase="SIN TI, NO HAY CONROL"),
     Category(slug="refinament", name="REFINAMIENTO", phrase="DEL GESTO"),
-    Category(slug="dramaqeen", name="DRAMAQEEN", phrase="POR EL DRAMA INFINITO"),
-    Category(slug="abuelo-cebolleta", name="ABUELO/A CEBOLLETA", phrase="EN MIS TIEMPOS..."),
-    Category(slug="intensito", name="INTENSITO", phrase="MUY EN SERIO"),
-    Category(slug="neurotipico", name="NEUROTIPICO", phrase="EL NORMALITO"),
-    Category(slug="molusco-bivalvo", name="MOLUSCO BIVALVO", phrase="SINTIENDOLO TODO"),
-    Category(slug="troll-cavernas", name="TROLL DE LAS CAVERNAS", phrase="RONCAR EPICO"),
+    Category(slug="dramaqeen", name="DRAMAQEEN", phrase="LLORA SIN FRENO"),
+    Category(slug="abuelo-cebolleta", name="ABUELO/A CEBOLLETA", phrase="ANTES, TODO ERA MEJOR"),
+    Category(slug="intensito", name="INTENSITO", phrase="EVANGELIZA CON PASIÓN"),
+    Category(slug="neurotipico", name="NEUROTÍPICO", phrase="ÚNICO EN EL ROL"),
+    Category(slug="molusco-bivalvo", name="MOLUSCO BIVALVO", phrase="LO VIVE POR DENTRO"),
+    Category(slug="troll-cavernas", name="TROLL CAVERNAS", phrase="TERROR DE LA NOCHE"),
 ]
 
+
+@dataclass(frozen=True)
+class ReferenceBase:
+    """The reference sculpture's own base, engraved directly.
+
+    Measured from `out/figura-referencia-100mm.stl` after the base was enlarged
+    to carry three legible lines. Engraving here means no separate plate, so
+    nothing to glue and nothing that can come off.
+    """
+
+    length: float = 49.19
+    height: float = 12.71
+    face_y: float = -10.56
+    layout: TextLayout = field(default_factory=lambda: PLAQUE_LAYOUT)
+
+    @property
+    def text_area_half_width(self) -> float:
+        return self.length / 2 - self.layout.side_margin_mm
+
+    @property
+    def z_range(self) -> tuple[float, float]:
+        return 0.0, self.height
+
+    @property
+    def text_block_center_z(self) -> float:
+        return self.height / 2
 
 
 class GlyphFont:
@@ -356,29 +396,70 @@ class PlacedLine:
 
 
 def stack_lines(
-    font: GlyphFont, category: Category, part: Pedestal | Plaque, max_width: float
+    font: GlyphFont, category: Category, part: Pedestal | Plaque | ReferenceBase, max_width: float
 ) -> list[PlacedLine]:
     """Lay the lines out as one vertically centred block.
 
-    Lines are stacked by their real ink bounding box, not by their capital
-    height, so accents and descenders cannot collide with the line above.
+    Lines are stacked by baseline, not by ink bounding box: a descender - the tail
+    of a Q, the comma in "SIN TI, NO HAY CONROL" - would otherwise push every line
+    below it downwards. Typesetting stacks by baseline and lets descenders hang
+    into the leading, which is what keeps the block from inflating.
+
+    The capitals are then shrunk, for this category only, until the block clears
+    `min_margin_mm` at both edges. The caps in the layout are therefore a
+    maximum, not a promise: an accented line ends up smaller, and the rest stay
+    as large as they fit.
     """
+    scale = vertical_fit_scale(font, category, part, max_width)
+    placed, _ = _stack_at_scale(font, category, part, max_width, scale)
+    return placed
+
+
+def vertical_fit_scale(
+    font: GlyphFont,
+    category: Category,
+    part: Pedestal | Plaque | ReferenceBase,
+    max_width: float,
+) -> float:
+    """How much the capitals have to shrink for this category to fit.
+
+    Exposed so the verification can report the size actually used rather than the
+    size requested: an accented line ends up smaller, and every other line keeps
+    its full size.
+    """
+    available = (part.z_range[1] - part.z_range[0]) - 2 * part.layout.min_margin_mm
+    scale = 1.0
+    for _ in range(8):
+        _, total = _stack_at_scale(font, category, part, max_width, scale)
+        if total <= 0.0 or total <= available:
+            break
+        scale *= max(0.5, available / total)
+    return scale
+
+
+def _stack_at_scale(
+    font: GlyphFont,
+    category: Category,
+    part: Pedestal | Plaque | ReferenceBase,
+    max_width: float,
+    scale: float,
+) -> tuple[list[PlacedLine], float]:
     built: list[tuple[str, shapely.Geometry, float, float]] = []
     for text, cap_mm in part.layout.caps(category):
         if not text.strip():
             continue  # a plain part has no inscription at all
-        geometry, ascender, descender = font.line_metrics(text, cap_mm, max_width=max_width)
+        geometry, ascender, descender = font.line_metrics(
+            text, cap_mm * scale, max_width=max_width
+        )
         if geometry.is_empty:
             continue
         built.append((text, geometry, ascender, descender))
     if not built:
-        return []
+        return [], 0.0
 
     gap = part.layout.line_gap_mm
-    # Baseline-to-baseline spacing. It is normally the next line's ascender plus
-    # the gap, but it widens when the line above has a descender that would
-    # otherwise run into it. That keeps the ink from colliding without letting a
-    # descender inflate the height of the whole block.
+    # Baseline-to-baseline spacing. Normally the next line's ascender plus the
+    # gap, widened when the line above has a descender that would run into it.
     spacings = [
         ascender + max(gap, descender_above + 0.1)
         for (_, _, _, descender_above), (_, _, ascender, _) in zip(built, built[1:])
@@ -392,7 +473,7 @@ def stack_lines(
             baseline -= spacings[index - 1]
         height = ascender + descender
         placed.append(PlacedLine(text, geometry, baseline + (ascender - descender) / 2, height))
-    return placed
+    return placed, total
 
 
 def _face_text_solids(
@@ -521,6 +602,40 @@ def build_plaque(font: GlyphFont, category: Category, spec: Plaque) -> trimesh.T
     return trimesh.boolean.difference([plate, *texts], engine="manifold")
 
 
+def build_engraved_reference(
+    font: GlyphFont, category: Category, blank: trimesh.Trimesh, spec: ReferenceBase
+) -> trimesh.Trimesh:
+    """The sculpture with its award text cut into its own base."""
+    texts = _engraved_text(font, category, spec, face_y=spec.face_y)
+    return trimesh.boolean.difference([blank, *texts], engine="manifold")
+
+
+def write_combined_3mf(meshes: list[tuple[str, trimesh.Trimesh]], target: Path) -> None:
+    """One file holding every engraved award, already placed on the plate.
+
+    STL cannot do this: it is a triangle soup with no names, no units and no
+    transforms, so eight awards become 78k anonymous triangles in one blob. 3MF
+    keeps them as named objects with millimetre units, which is what lets a
+    slicer show `premio-troll-cavernas` as a selectable object. Engraving means
+    every award is a unique object, so the slicer's "multiply" no longer applies;
+    this file is the substitute, laid out so it needs no arranging by hand.
+    """
+    scene = trimesh.Scene()
+    for index, (name, mesh) in enumerate(meshes):
+        placed = mesh.copy()
+        column = index % PLATE_COLUMNS
+        row = index // PLATE_COLUMNS
+        placed.apply_translation(
+            [
+                (column - (PLATE_COLUMNS - 1) / 2.0) * PLATE_PITCH_MM,
+                row * PLATE_PITCH_MM * 0.75,
+                0.0,
+            ]
+        )
+        scene.add_geometry(placed, node_name=name, geom_name=name)
+    target.write_bytes(scene.export(file_type="3mf"))
+
+
 def validate(mesh: trimesh.Trimesh, label: str) -> None:
     """Fail loudly rather than shipping an unprintable STL."""
     problems: list[str] = []
@@ -623,9 +738,32 @@ def main() -> int:
             validate(pedestal, f"peana-{category.slug}.stl")
             pedestal.export(OUT_DIR / f"peana-{category.slug}.stl")
 
-        plaque = build_plaque(font, category, plaque_spec)
-        validate(plaque, f"placa-{category.slug}.stl")
-        plaque.export(OUT_DIR / f"placa-{category.slug}.stl")
+        if EMIT_PLATES:
+            plaque = build_plaque(font, category, plaque_spec)
+            validate(plaque, f"placa-{category.slug}.stl")
+            plaque.export(OUT_DIR / f"placa-{category.slug}.stl")
+
+    # Engrave every award into the sculpture's own base.
+    reference_path = OUT_DIR / "figura-referencia-100mm.stl"
+    if reference_path.exists():
+        print("\nengraved reference sculptures (no plate to glue)")
+        base_spec = ReferenceBase()
+        engraved_parts: list[tuple[str, trimesh.Trimesh]] = []
+        for category in CATEGORIES:
+            blank = trimesh.load(reference_path, force="mesh")
+            engraved = build_engraved_reference(font, category, blank, base_spec)
+            validate(engraved, f"premio-{category.slug}.stl")
+            engraved.export(OUT_DIR / f"premio-{category.slug}.stl")
+            report_budget(engraved, f"premio-{category.slug}.stl")
+            engraved_parts.append((f"premio-{category.slug}", engraved))
+        combined = OUT_DIR / "premios-8.3mf"
+        write_combined_3mf(engraved_parts, combined)
+        print(
+            f"         {combined.name}: {combined.stat().st_size / 1e6:.1f} MB, "
+            f"{len(engraved_parts)} named objects laid out on one plate"
+        )
+    else:
+        print(f"\nno {reference_path.name}: run prepare_reference.py first")
 
     print(f"\n{len(CATEGORIES)} categories written to {OUT_DIR} (route: {ROUTE})")
     return 0
